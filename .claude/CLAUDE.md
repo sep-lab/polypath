@@ -43,8 +43,6 @@ A censorship-resistant VPN infrastructure designed for users in Iran. It provide
 | `tools/deploy/ip-rotate.sh` | Hetzner IP auto-rotation script |
 | `docs/api.md` | Smart-sub worker API reference (endpoints, schemas, auth) |
 | `docs/RELEASE.md` | Release process SOP (version bumping, deployment, rollback) |
-| `.github/workflows/deploy-worker.yml` | Auto-deploy to CF Pages + Vercel on push to main |
-| `.github/workflows/deploy-ansible.yml` | Ansible server provisioning (requires production env approval) |
 | `.github/workflows/release.yml` | Auto-create GitHub Release on tag push |
 
 ## Server Inventory

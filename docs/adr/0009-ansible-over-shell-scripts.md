@@ -33,6 +33,6 @@ Ansible playbooks are validated against all 4 servers.
   twice produces 0 changes (idempotent by design).
 - **New server setup = one command:** `ansible-playbook site.yml`
 - **CI lints playbooks** via `ansible-lint` on every PR.
-- **GitHub Actions deploys** via `deploy-ansible.yml` with manual approval
-  gate (`environment: production`).
+- **Deployment is run privately**, not from this public repo — `ansible-playbook site.yml`
+  against your own inventory and credentials.
 - **Old scripts preserved** until Ansible validation is complete.
