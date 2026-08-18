@@ -1,13 +1,8 @@
 name: Deploy — Smart-Sub Worker
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "tools/smart-sub/src/**"
-      - "tools/smart-sub/wrangler.toml"
-      - "tools/backup-sub/**"
-      - "config/**"
+  # Auto-deploy on push is intentionally disabled for the public repo — deploying
+  # live infrastructure is a manual, credentialed action. Trigger by hand instead.
   workflow_call:
   workflow_dispatch:
     inputs:

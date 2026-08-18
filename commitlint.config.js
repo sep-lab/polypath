@@ -21,5 +21,7 @@ export default {
       ],
     ],
     "subject-case": [0], // Allow any case in subject
+    "body-max-line-length": [0], // Allow long lines (URLs, Dependabot bodies)
+    "footer-max-line-length": [0],
   },
 };

@@ -1,8 +1,9 @@
 name: VPN Health Check
 
 on:
-  schedule:
-    - cron: '*/30 * * * *'  # Every 30 minutes
+  # Scheduled monitoring is disabled on the public repo: run logs would expose
+  # live endpoints, and public cron auto-disables after 60 days. Run by hand,
+  # or move monitoring to a private repo / external scheduler.
   workflow_dispatch: {}       # Manual trigger
 
 jobs:

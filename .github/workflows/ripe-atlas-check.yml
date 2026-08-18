@@ -1,8 +1,8 @@
 name: RIPE Atlas Iran Monitor
 
 on:
-  schedule:
-    - cron: '0 */6 * * *'  # Every 6 hours
+  # Scheduled monitoring is disabled on the public repo (run logs would expose
+  # measurement targets). Trigger manually, or run it from a private repo.
   workflow_dispatch:
     inputs:
       measurement_ids:
