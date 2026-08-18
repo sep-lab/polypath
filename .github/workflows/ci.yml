@@ -57,7 +57,7 @@ jobs:
       # No continue-on-error: every markdown file in the repo now lints clean,
       # so this is a real gate. It previously could not fail, which is why the
       # docs accumulated broken links, mislabelled fences and bad tables.
-      - uses: DavidAnson/markdownlint-cli2-action@v22
+      - uses: DavidAnson/markdownlint-cli2-action@v24
         with:
           globs: '**/*.md'
           config: '.markdownlint.yml'
