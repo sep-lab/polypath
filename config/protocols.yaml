@@ -1,0 +1,43 @@
+# Protocol defaults — shared ports, methods, versions
+# Source of truth for protocol-level settings in worker.js
+
+# Finalmask (mKCP header obfuscation) port assignments
+finalmask:
+  xdns_port: 10053
+  xicmp_port: 10054
+  wechat_port: 10055
+  dtls_port: 10056
+  srtp_port: 10057
+
+# ShadowTLS v3 defaults (password from env var SHADOWTLS_PASSWORD)
+shadowtls:
+  port: 10443
+  version: 3
+  handshake_server: "www.google.com"
+
+# Hysteria2 Salamander port hopping (password from env var SALAMANDER_PASSWORD)
+salamander:
+  hop_min: 20000
+  hop_max: 50000
+  hop_interval: 30
+
+# SS2022 shared defaults
+ss2022:
+  method: "2022-blake3-aes-128-gcm"
+  port: 80
+
+# NaiveProxy shared defaults
+naiveproxy:
+  port: 2087
+  user: "vpnuser"
+
+# MTProto shared defaults
+mtproto:
+  port: 3443
+
+# Cloak defaults (only SCW currently)
+cloak:
+  port: 2053
+  encryption: "plain"
+  browser_sig: "chrome"
+  server_name: "www.google.com"

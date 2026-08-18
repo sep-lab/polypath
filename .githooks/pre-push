@@ -1,0 +1,45 @@
+#!/bin/bash
+# Pre-push hook: prevent direct pushes to main
+# Install: git config core.hooksPath .githooks
+#
+# This is a LOCAL safeguard only. For real branch protection,
+# make the repo public or upgrade to GitHub Pro (see issue #2).
+
+BRANCH=$(git rev-parse --abbrev-ref HEAD)
+
+if [[ "$BRANCH" == "main" ]]; then
+    # Allow bypass: ALLOW_MAIN_PUSH=1 git push origin main
+    if [[ "$ALLOW_MAIN_PUSH" == "1" ]]; then
+        echo "⚠️  Bypassing main push protection (ALLOW_MAIN_PUSH=1)"
+    elif [[ ! -t 0 ]]; then
+        # Non-interactive terminal (CI, piped input) — block by default
+        echo "❌ Direct push to main blocked in non-interactive mode."
+        echo "   Set ALLOW_MAIN_PUSH=1 to override, or use --no-verify."
+        exit 1
+    else
+        echo ""
+        echo "⚠️  WARNING: You're pushing directly to 'main'!"
+        echo ""
+        echo "Best practice: use a feature branch and open a PR."
+        echo "  git checkout -b feature/my-change"
+        echo "  git push origin feature/my-change"
+        echo ""
+        read -r -p "Push to main anyway? (y/N): " confirm </dev/tty
+        if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+            echo "Push cancelled."
+            exit 1
+        fi
+    fi
+fi
+
+# Run tests before push (if available)
+if [[ -f "tools/smart-sub/worker.test.js" ]]; then
+    echo "Running tests before push..."
+    cd tools/smart-sub && npx vitest run --reporter=dot 2>/dev/null
+    if [[ $? -ne 0 ]]; then
+        echo "❌ Tests failed. Push aborted."
+        exit 1
+    fi
+    cd - > /dev/null
+    echo "✅ Tests passed."
+fi

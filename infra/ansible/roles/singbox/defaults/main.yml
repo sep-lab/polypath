@@ -1,0 +1,5 @@
+---
+singbox_image: ghcr.io/sagernet/sing-box:latest
+singbox_reality_port: 1443
+singbox_ws_port: 10080
+singbox_hy2_port: 8443

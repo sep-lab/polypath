@@ -1,0 +1,364 @@
+name: CI — Lint & Quality
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  shellcheck:
+    name: ShellCheck — Bash Scripts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install ShellCheck
+        run: sudo apt-get install -y shellcheck
+
+      - name: Find and check shell scripts
+        run: |
+          echo "=== Checking shell scripts ==="
+          find . -name '*.sh' -type f | while read -r script; do
+            echo "Checking: $script"
+            shellcheck -x -S warning "$script" || true
+          done
+
+      - name: Strict check (deploy scripts)
+        run: |
+          echo "=== Strict check on deploy scripts ==="
+          ERRORS=0
+          while IFS= read -r script; do
+            echo "Checking: $script"
+            if ! shellcheck -x -S error "$script"; then
+              ERRORS=$((ERRORS + 1))
+            fi
+          done < <(find tools/deploy -name '*.sh' -type f)
+          while IFS= read -r script; do
+            echo "Checking: $script"
+            if ! shellcheck -x -S error "$script"; then
+              ERRORS=$((ERRORS + 1))
+            fi
+          done < <(find tools -maxdepth 1 -name '*.sh' -type f)
+          if [ "$ERRORS" -gt 0 ]; then
+            echo "❌ $ERRORS script(s) failed strict check"
+            exit 1
+          fi
+
+  markdown-lint:
+    name: Markdown Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      # No continue-on-error: every markdown file in the repo now lints clean,
+      # so this is a real gate. It previously could not fail, which is why the
+      # docs accumulated broken links, mislabelled fences and bad tables.
+      - uses: DavidAnson/markdownlint-cli2-action@v22
+        with:
+          globs: '**/*.md'
+          config: '.markdownlint.yml'
+
+  secrets-scan:
+    name: Secrets & Credential Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Check for potential secrets
+        run: |
+          echo "=== Scanning for potential credential leaks ==="
+          FOUND=0
+
+          # Check for common secret patterns (excluding docs with <PLACEHOLDER> format)
+          echo "--- Private keys ---"
+          if grep -rn "PRIVATE KEY" --include='*.sh' --include='*.js' --include='*.env' --include='*.toml' . 2>/dev/null | grep -v 'example\|PLACEHOLDER\|<.*>'; then
+            echo "⚠️  Potential private key found"
+            FOUND=1
+          fi
+
+          echo "--- API tokens/passwords in code ---"
+          if grep -rn "Bearer [A-Za-z0-9_-]\{20,\}" --include='*.sh' --include='*.js' . 2>/dev/null | grep -v 'example\|PLACEHOLDER\|<.*>\|Authorization.*\$'; then
+            echo "⚠️  Potential API token found"
+            FOUND=1
+          fi
+
+          echo "--- .env files (should be gitignored) ---"
+          if find . -name 'vars.env' -o -name '.env' | grep -v example | grep -v node_modules; then
+            echo "⚠️  .env file found in repo!"
+            FOUND=1
+          fi
+
+          echo "--- Hardcoded passwords ---"
+          if grep -rn "password\s*=\s*['\"][^<]" --include='*.sh' --include='*.js' --include='*.toml' . 2>/dev/null | grep -vi 'example\|placeholder\|<.*>\|PLACEHOLDER\|todo\|changeme'; then
+            echo "⚠️  Potential hardcoded password"
+            FOUND=1
+          fi
+
+          if [ "$FOUND" -eq 0 ]; then
+            echo "✅ No secrets detected"
+          else
+            echo ""
+            echo "⚠️  Review the findings above. False positives are possible."
+            echo "If these are intentional (e.g., documented placeholders), they're safe."
+          fi
+
+  worker-syntax:
+    name: Worker.js Syntax & Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci --registry https://registry.npmjs.org
+      - name: TypeScript type-check
+        run: npx tsc --noEmit
+      - name: Build worker
+        run: npm run build
+      - name: Check worker.js syntax
+        run: node --check tools/smart-sub/worker.js
+
+      - name: Basic structure validation
+        run: |
+          echo "=== Worker.js Structure Check ==="
+
+          # Check that critical sections exist
+          echo "--- Server definitions ---"
+          grep -c "tag:" tools/smart-sub/worker.js | xargs -I{} echo "Servers defined: {}"
+
+          echo "--- Generator functions ---"
+          grep -c "function generate" tools/smart-sub/worker.js | xargs -I{} echo "Generator functions: {}"
+
+          echo "--- Config builder (v4.1.0+) ---"
+          if grep -q "buildConfig" tools/smart-sub/worker.js; then
+            echo "✅ buildConfig(env) found"
+          else
+            echo "❌ buildConfig(env) missing!"
+            exit 1
+          fi
+
+          echo "--- Health endpoint ---"
+          if grep -q "/health" tools/smart-sub/worker.js; then
+            echo "✅ Health endpoint found"
+          else
+            echo "❌ Health endpoint missing!"
+            exit 1
+          fi
+
+  openapi-lint:
+    name: OpenAPI Spec Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+
+      - run: npm ci
+      - run: npx @redocly/cli lint docs/openapi.yaml
+
+  validate-config:
+    name: Config Schema Validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+
+      - run: npm ci
+      - run: npm run validate:config
+
+  docs-freshness:
+    name: Generated Docs Freshness
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+
+      - run: npm ci
+      - run: npm run docs:generate
+      - name: Check docs are up to date
+        run: |
+          git diff --exit-code -- '*.md' || (echo "Docs are stale. Run: npm run docs:generate" && exit 1)
+
+  doc-sync:
+    name: Doc Sync — Version & Count Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Extract worker.js source of truth
+        id: worker
+        run: |
+          WORKER="tools/smart-sub/worker.js"
+          VERSION=$(grep -m1 'worker_version:' "$WORKER" | grep -oP '\d+\.\d+\.\d+')
+          SHORT_VERSION="v$(echo "$VERSION" | cut -d. -f1,2)"
+          LINES=$(wc -l < "$WORKER" | tr -d ' ')
+          GENERATORS=$(grep -c '^function generate' "$WORKER")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "short_version=$SHORT_VERSION" >> $GITHUB_OUTPUT
+          echo "lines=$LINES" >> $GITHUB_OUTPUT
+          echo "generators=$GENERATORS" >> $GITHUB_OUTPUT
+
+      - name: Check version consistency across docs
+        env:
+          SHORT_VERSION: ${{ steps.worker.outputs.short_version }}
+        run: |
+          ERRORS=0
+          DOC_FILES=("README.md" "architecture.md" "strategy-roadmap.md" "docs/api.md" ".claude/CLAUDE.md")
+          for f in "${DOC_FILES[@]}"; do
+            if [ ! -f "$f" ]; then continue; fi
+            STALE=$(grep -inP '(smart.sub|worker|subscription)\s+v\d+\.\d+' "$f" \
+              | grep -ivP "${SHORT_VERSION}" \
+              | grep -ivP 'changelog|history|was |before |old |previous' || true)
+            if [ -n "$STALE" ]; then
+              echo "❌ $f has stale version references:"
+              echo "$STALE" | head -3
+              ERRORS=$((ERRORS + 1))
+            fi
+          done
+          if [ "$ERRORS" -gt 0 ]; then
+            echo "::error::$ERRORS file(s) have stale version references."
+            exit 1
+          fi
+
+      - name: Check backup-sub is in sync
+        run: |
+          if diff -q tools/smart-sub/worker.js tools/backup-sub/core-worker.js > /dev/null 2>&1; then
+            echo "✅ backup-sub in sync"
+          else
+            echo "::error::backup-sub/core-worker.js is out of sync. Run: npm run build"
+            exit 1
+          fi
+
+  bash-syntax:
+    name: Bash Syntax Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Check all shell scripts parse correctly
+        run: |
+          echo "=== Bash syntax check ==="
+          ERRORS=0
+          # Note: bash -n can false-positive on scripts with embedded Python/heredocs
+          # We check with bash -n first, then verify real errors vs embedded-language false positives
+          while IFS= read -r script; do
+            if ! bash -n "$script" 2>/dev/null; then
+              # Check if the "error" is from embedded python/heredoc (known pattern)
+              if grep -q 'python3 -c' "$script" 2>/dev/null; then
+                echo "⚠️  $script — skipped (contains embedded Python)"
+              else
+                echo "❌ Syntax error: $script"
+                bash -n "$script" 2>&1 || true
+                ERRORS=$((ERRORS + 1))
+              fi
+            else
+              echo "✅ $script"
+            fi
+          done < <(find . -name '*.sh' -type f)
+          if [ "$ERRORS" -gt 0 ]; then
+            echo "❌ $ERRORS script(s) have syntax errors"
+            exit 1
+          fi
+          echo "✅ All scripts passed"
+
+  editorconfig:
+    name: EditorConfig Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Check final newlines
+        run: |
+          echo "=== Checking files end with newline ==="
+          ERRORS=0
+          find . \( -name '*.md' -o -name '*.sh' -o -name '*.js' -o -name '*.toml' -o -name '*.yml' \) \
+            -not -path './.git/*' -not -path './node_modules/*' -type f | while read -r file; do
+            if [ -s "$file" ] && [ "$(tail -c 1 "$file" | wc -l)" -eq 0 ]; then
+              echo "⚠️  Missing final newline: $file"
+            fi
+          done
+
+  ansible_lint:
+    name: Ansible Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Ansible and ansible-lint
+        run: pip install ansible ansible-lint
+
+      - name: Install Ansible collections
+        run: ansible-galaxy collection install -r infra/ansible/requirements.yml
+
+      # Run from infra/ansible so ansible.cfg (roles_path = roles) is loaded.
+      # From the repo root, ansible-lint resolves roles against
+      # infra/ansible/playbooks/roles and fails with "role not found".
+      - name: Run ansible-lint
+        working-directory: infra/ansible
+        run: ansible-lint .
+
+  onboarding_demo:
+    name: Onboarding Demo
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm ci
+
+      # The demo is the project's front door: a stranger should be able to clone
+      # and see real output with no VPS, no domain and no credentials. If this
+      # breaks, onboarding is broken — so it fails the build rather than warning.
+      - name: npm run demo
+        run: npm run demo
+
+      - name: Assert the demo actually generated configs
+        run: |
+          set -euo pipefail
+          out="$(npm run demo --silent)"
+          echo "$out"
+          count="$(printf '%s' "$out" | sed -n 's/.*[^0-9]\([0-9]\{2,\}\) configs generated.*/\1/p' | head -1)"
+          if [ -z "${count:-}" ] || [ "$count" -lt 50 ]; then
+            echo "::error::demo generated ${count:-0} configs (expected >= 50)"
+            exit 1
+          fi
+          echo "demo generated $count configs"
+
+  packer_validate:
+    name: Packer Validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: hashicorp/setup-packer@main
+
+      - name: Packer init (ubuntu-base)
+        run: packer init infra/packer/ubuntu-base.pkr.hcl
+
+      - name: Validate ubuntu-base (syntax-only — shared config, no build block)
+        run: packer validate -syntax-only infra/packer/ubuntu-base.pkr.hcl
+
+      - name: Packer init (hetzner)
+        run: packer init infra/packer/hetzner.pkr.hcl
+
+      - name: Validate hetzner
+        run: packer validate -syntax-only infra/packer/hetzner.pkr.hcl

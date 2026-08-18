@@ -1,0 +1,19 @@
+{
+  "name": "vpn-smart-sub",
+  "private": true,
+  "version": "5.11.0",
+  "type": "module",
+  "scripts": {
+    "test": "cd ../.. && npm run build && vitest run",
+    "test:watch": "cd ../.. && vitest",
+    "test:coverage": "vitest run --coverage",
+    "dev": "cd ../.. && npm run build && cd tools/smart-sub && wrangler dev worker.js --port 8787",
+    "predeploy": "cd ../.. && npm run build && vitest run",
+    "deploy": "mkdir -p /tmp/vpn-sub-deploy && cp worker.js /tmp/vpn-sub-deploy/_worker.js && wrangler pages deploy /tmp/vpn-sub-deploy --project-name your-pages-project --commit-dirty=true",
+    "deploy:backup": "cd ../.. && npm run build && cd tools/backup-sub && vercel deploy --prod --yes",
+    "version:check": "node -e \"const v = require('./package.json').version; const w = require('fs').readFileSync('worker.js','utf8').match(/worker_version:\\s*[\\\"']([\\d.]+)/)[1]; if(v!==w){console.error('Version mismatch: package.json='+v+' worker.js='+w);process.exit(1)}else{console.log('✅ Versions match: '+v)}\""
+  },
+  "devDependencies": {
+    "vitest": "^4.1.1"
+  }
+}

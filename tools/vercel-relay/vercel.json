@@ -1,0 +1,15 @@
+{
+  "rewrites": [
+    { "source": "/health", "destination": "/api/relay" },
+    { "source": "/(.*)", "destination": "/api/relay" }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Powered-By", "value": "vercel" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" }
+      ]
+    }
+  ]
+}

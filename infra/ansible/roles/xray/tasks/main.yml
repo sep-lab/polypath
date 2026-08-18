@@ -1,0 +1,32 @@
+---
+- name: Create /opt/xray directory
+  ansible.builtin.file:
+    path: /opt/xray
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: Template xray docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: /opt/xray/docker-compose.yml
+    owner: root
+    group: root
+    mode: "0640"
+  notify: Restart xray
+
+- name: Template xray config.json
+  ansible.builtin.template:
+    src: config.json.j2
+    dest: /opt/xray/config.json
+    owner: root
+    group: root
+    mode: "0640"
+  notify: Restart xray
+
+- name: Start xray container
+  community.docker.docker_compose_v2:
+    project_src: /opt/xray
+    state: present
+    pull: always

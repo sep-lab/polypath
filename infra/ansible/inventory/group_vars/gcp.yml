@@ -1,0 +1,8 @@
+---
+# GCP Middle East server-specific protocol flags
+has_naiveproxy: false
+has_cloak: false
+has_shadowtls: false
+has_finalmask: false
+has_dnstt: false
+has_amneziawg: false

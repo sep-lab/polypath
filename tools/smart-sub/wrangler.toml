@@ -1,0 +1,19 @@
+name = "vpn-smart-sub"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+workers_dev = false
+
+# Production: CF Pages project "your-pages-project" (sub.example.com)
+# Previous project "your-pages-project" was abuse-blocked by CF.
+# Workers.dev route disabled — use custom domain only.
+#
+# Deploy: wrangler pages deploy <dir> --project-name your-pages-project
+# Test locally: wrangler dev worker.js --port 8787
+
+# KV for health data + user management (free tier: 100k reads/day, 1k writes/day)
+# Users and health data share this namespace with prefixed keys (user:*, sub_hits:*, server_health)
+# Replace `id` with your own namespace id:  wrangler kv namespace create HEALTH
+# The value below is a placeholder, not a live namespace.
+[[kv_namespaces]]
+binding = "HEALTH"
+id = "0000000000000000000000000000cafe"

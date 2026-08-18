@@ -1,0 +1,63 @@
+{
+  "log": { "level": "warn" },
+  "inbounds": [
+    {
+      "type": "vless",
+      "tag": "vless-reality",
+      "listen": "127.0.0.1",
+      "listen_port": {{ singbox_reality_port }},
+      "users": [{ "uuid": "{{ vless_uuid }}", "flow": "xtls-rprx-vision" }],
+      "tls": {
+        "enabled": true,
+        "server_name": "{{ reality_sni }}",
+        "reality": {
+          "enabled": true,
+          "handshake": { "server": "{{ reality_sni }}", "server_port": 443 },
+          "private_key": "{{ reality_private_key }}",
+          "short_id": ["{{ reality_short_id }}"]
+        }
+      }
+    },
+    {
+      "type": "vless",
+      "tag": "vless-ws",
+      "listen": "127.0.0.1",
+      "listen_port": {{ singbox_ws_port }},
+      "users": [{ "uuid": "{{ vless_uuid }}" }],
+      "transport": {
+        "type": "ws",
+        "path": "{{ cdn_ws_path }}"
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "{{ domain }}"
+      }
+    },
+    {
+      "type": "hysteria2",
+      "tag": "hy2",
+      "listen": "::",
+      "listen_port": {{ singbox_hy2_port }},
+      "users": [{ "password": "{{ hy2_password }}" }],
+      "tls": {
+        "enabled": true,
+        "server_name": "{{ domain }}"
+      }
+    }
+  ],
+  "outbounds": [
+    { "type": "direct", "tag": "direct" },
+    {
+      "type": "wireguard",
+      "tag": "warp",
+      "server": "engage.cloudflareclient.com",
+      "server_port": 2408,
+      "local_address": ["172.16.0.2/32"],
+      "private_key": "{{ warp_private_key | default('placeholder') }}"
+    }
+  ],
+  "route": {
+    "rules": [],
+    "final": "warp"
+  }
+}

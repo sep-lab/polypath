@@ -1,0 +1,26 @@
+---
+- name: Install NaiveProxy via Caddy Docker
+  ansible.builtin.file:
+    path: /opt/naive
+    state: directory
+    mode: "0750"
+  when: has_naiveproxy | default(false)
+
+- name: Template Caddyfile for NaiveProxy
+  ansible.builtin.template:
+    src: Caddyfile.j2
+    dest: /opt/naive/Caddyfile
+    mode: "0640"
+  when: has_naiveproxy | default(false)
+  notify: Restart naive
+
+- name: Start NaiveProxy container
+  community.docker.docker_container:
+    name: naive
+    image: pocat/caddy-naive:latest
+    restart_policy: always
+    network_mode: host
+    volumes:
+      - /opt/naive/Caddyfile:/etc/caddy/Caddyfile:ro
+    state: started
+  when: has_naiveproxy | default(false)

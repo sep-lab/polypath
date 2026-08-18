@@ -1,0 +1,5 @@
+---
+- name: Restart singbox
+  community.docker.docker_compose_v2:
+    project_src: /opt/engine
+    state: restarted

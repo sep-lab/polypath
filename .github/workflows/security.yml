@@ -1,0 +1,66 @@
+name: Security — Dependency & Secret Audit
+
+on:
+  pull_request:
+    branches: [main]
+  schedule:
+    # Run weekly on Monday at 09:00 UTC
+    - cron: '0 9 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  credential-audit:
+    name: Deep Credential Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Install truffleHog
+        run: pip install trufflehog
+
+      - name: Scan for secrets in git history
+        run: |
+          echo "=== Scanning git history for secrets ==="
+          trufflehog filesystem . --no-update --json 2>/dev/null | head -50 || echo "✅ No high-confidence secrets found"
+        continue-on-error: true
+
+      - name: Check for UUID changes (require admin review)
+        if: github.event_name == 'pull_request'
+        run: |
+          echo "=== Checking for UUID/account changes ==="
+          if git diff origin/main...HEAD -- tools/smart-sub/worker.js | grep -E "^\+.*[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"; then
+            echo ""
+            echo "⚠️  UUID changes detected in worker.js — requires admin review!"
+            echo "::warning::UUID/account changes detected in worker.js. Admin approval required."
+          else
+            echo "✅ No UUID changes"
+          fi
+
+  vars-env-check:
+    name: Verify vars.env Not Committed
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Check that vars.env is not in the repo
+        run: |
+          if [ -f "tools/deploy/vars.env" ] || [ -f "vars.env" ]; then
+            echo "❌ vars.env found in repo! This file contains secrets and must not be committed."
+            exit 1
+          fi
+          echo "✅ No vars.env in repo"
+
+      - name: Verify .gitignore covers secrets
+        run: |
+          echo "=== Checking .gitignore ==="
+          for pattern in "vars.env" "*.env" ".wrangler"; do
+            if grep -q "$pattern" .gitignore; then
+              echo "✅ $pattern is gitignored"
+            else
+              echo "⚠️  $pattern not found in .gitignore"
+            fi
+          done

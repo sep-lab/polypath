@@ -1,0 +1,174 @@
+name: RIPE Atlas Setup Measurements
+
+# Run this manually once credits are available on your RIPE Atlas account.
+# After measurements are created, their IDs will be set as a GitHub secret
+# and the ripe-atlas-check.yml workflow will start using them.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  create-measurements:
+    runs-on: ubuntu-latest
+    env:
+      HAS_KEY: ${{ secrets.RIPE_ATLAS_API_KEY != '' }}
+      HAS_IDS: ${{ secrets.RIPE_ATLAS_MEASUREMENT_IDS != '' }}
+    steps:
+      - name: Skip if already configured
+        if: env.HAS_IDS == 'true'
+        run: |
+          echo "Measurements already configured. Nothing to do."
+          echo "IDs: ${{ secrets.RIPE_ATLAS_MEASUREMENT_IDS }}"
+          echo "skip=true" >> $GITHUB_OUTPUT
+        id: check
+
+      - name: Create measurements
+        if: env.HAS_KEY == 'true' && steps.check.outputs.skip != 'true'
+        env:
+          RIPE_KEY: ${{ secrets.RIPE_ATLAS_API_KEY }}
+        run: |
+          API="https://atlas.ripe.net/api/v2"
+          IRAN_PROBES="${RIPE_ATLAS_IRAN_PROBES}"
+          MEASUREMENT_IDS=""
+          CREATED=0
+
+          # Server targets
+          declare -A SERVERS
+          SERVERS[helsinki]="${{ secrets.HELSINKI_IP }}"
+          SERVERS[madrid]="${{ secrets.ORACLE_IP }}"
+          SERVERS[dammam]="${{ secrets.GCP_IP }}"
+          SERVERS[london]="${{ secrets.SCALEWAY_IP }}"
+
+          for TAG in helsinki madrid dammam london; do
+            IP="${SERVERS[$TAG]}"
+            [ -z "$IP" ] && continue
+
+            echo "Creating TCP/443 traceroute to $TAG ($IP)..."
+            RESULT=$(curl -s -X POST "${API}/measurements/" \
+              -H "Authorization: Key ${RIPE_KEY}" \
+              -H "Content-Type: application/json" \
+              -d "{
+                \"definitions\": [{
+                  \"type\": \"traceroute\",
+                  \"af\": 4,
+                  \"target\": \"${IP}\",
+                  \"port\": 443,
+                  \"protocol\": \"TCP\",
+                  \"paris\": 16,
+                  \"max_hops\": 32,
+                  \"description\": \"VPN ${TAG} TCP/443 from Iran\",
+                  \"resolve_on_probe\": false,
+                  \"is_oneoff\": false,
+                  \"interval\": 3600,
+                  \"tags\": [\"vpn-monitor\", \"iran-probe\"]
+                }],
+                \"probes\": [{
+                  \"type\": \"probes\",
+                  \"value\": \"${IRAN_PROBES}\",
+                  \"requested\": 6
+                }],
+                \"is_oneoff\": false
+              }")
+
+            MSM_ID=$(echo "$RESULT" | jq -r '.measurements[0] // empty' 2>/dev/null)
+            if [ -n "$MSM_ID" ]; then
+              echo "  Created measurement $MSM_ID"
+              [ -n "$MEASUREMENT_IDS" ] && MEASUREMENT_IDS="${MEASUREMENT_IDS},"
+              MEASUREMENT_IDS="${MEASUREMENT_IDS}${MSM_ID}"
+              CREATED=$((CREATED + 1))
+            else
+              ERROR=$(echo "$RESULT" | jq -r '.errors[0].detail // .error.detail // "unknown"' 2>/dev/null)
+              echo "  Failed: $ERROR"
+              if echo "$ERROR" | grep -q "credit"; then
+                echo "Not enough credits yet. Will retry next run."
+                exit 0
+              fi
+            fi
+          done
+
+          # Create DNS measurement for CDN domain
+          if [ "$CREATED" -gt 0 ]; then
+            echo "Creating DNS measurement for cdn.example.com..."
+            RESULT=$(curl -s -X POST "${API}/measurements/" \
+              -H "Authorization: Key ${RIPE_KEY}" \
+              -H "Content-Type: application/json" \
+              -d "{
+                \"definitions\": [{
+                  \"type\": \"dns\",
+                  \"af\": 4,
+                  \"target\": \"8.8.8.8\",
+                  \"query_class\": \"IN\",
+                  \"query_type\": \"A\",
+                  \"query_argument\": \"cdn.example.com\",
+                  \"use_probe_resolver\": true,
+                  \"set_rd_bit\": true,
+                  \"protocol\": \"UDP\",
+                  \"description\": \"DNS cdn.example.com from Iran\",
+                  \"is_oneoff\": false,
+                  \"interval\": 3600,
+                  \"tags\": [\"vpn-monitor\", \"iran-dns\"]
+                }],
+                \"probes\": [{
+                  \"type\": \"probes\",
+                  \"value\": \"${IRAN_PROBES}\",
+                  \"requested\": 6
+                }],
+                \"is_oneoff\": false
+              }")
+
+            MSM_ID=$(echo "$RESULT" | jq -r '.measurements[0] // empty' 2>/dev/null)
+            if [ -n "$MSM_ID" ]; then
+              echo "  Created DNS measurement $MSM_ID"
+              MEASUREMENT_IDS="${MEASUREMENT_IDS},${MSM_ID}"
+              CREATED=$((CREATED + 1))
+            fi
+          fi
+
+          if [ "$CREATED" -gt 0 ]; then
+            echo "measurement_ids=$MEASUREMENT_IDS" >> $GITHUB_OUTPUT
+            echo "created=$CREATED" >> $GITHUB_OUTPUT
+            echo ""
+            echo "Created $CREATED measurements: $MEASUREMENT_IDS"
+            echo ""
+            echo "Set this as RIPE_ATLAS_MEASUREMENT_IDS secret:"
+            echo "  $MEASUREMENT_IDS"
+          fi
+        id: create
+
+      - name: Store measurement IDs
+        if: steps.create.outputs.created > 0
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MEASUREMENT_IDS: ${{ steps.create.outputs.measurement_ids }}
+        run: |
+          # Can't set secrets via GITHUB_TOKEN, but output them clearly
+          echo "::notice::RIPE Atlas measurements created! Set this GitHub secret:"
+          echo "::notice::RIPE_ATLAS_MEASUREMENT_IDS = $MEASUREMENT_IDS"
+          echo ""
+          echo "Run: gh secret set RIPE_ATLAS_MEASUREMENT_IDS -b '$MEASUREMENT_IDS'"
+
+      - name: Notify via Telegram
+        if: steps.create.outputs.created > 0
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          MSG="🛰️ RIPE Atlas measurements created!%0A"
+          MSG+="IDs: ${{ steps.create.outputs.measurement_ids }}%0A"
+          MSG+="Set RIPE_ATLAS_MEASUREMENT_IDS secret to activate monitoring."
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d "chat_id=${TELEGRAM_CHAT_ID}" \
+            -d "text=${MSG}" || true
+
+      - name: Summary
+        if: always()
+        run: |
+          if [ "${{ env.HAS_IDS }}" = "true" ]; then
+            echo "Measurements already configured. This workflow can be disabled."
+          elif [ "${{ steps.create.outputs.created }}" -gt 0 ]; then
+            echo "Created ${{ steps.create.outputs.created }} measurements."
+            echo "Set RIPE_ATLAS_MEASUREMENT_IDS = ${{ steps.create.outputs.measurement_ids }}"
+          else
+            echo "Not enough credits yet — a hosted software probe earns credits over time."
+            echo "Will retry every 3 hours. Current balance may take time to sync."
+          fi

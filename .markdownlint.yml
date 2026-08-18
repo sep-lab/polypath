@@ -1,0 +1,32 @@
+# Markdown lint configuration
+# https://github.com/DavidAnson/markdownlint
+
+# MD013 - Line length (disabled — spec files have long tables)
+MD013: false
+
+# MD033 - Inline HTML (allowed for diagrams)
+MD033: false
+
+# MD041 - First line should be a top-level heading
+MD041: true
+
+# MD024 - Multiple headings with same content (allowed)
+MD024: false
+
+# MD040 - Fenced code blocks should have a language
+MD040: true
+
+# MD046 - Code block style (fenced)
+MD046:
+  style: "fenced"
+
+# MD060 - Table column style (disabled)
+# Purely cosmetic: pipe spacing and alignment within tables. The repo's tables
+# are hand-maintained and reflowing them adds churn without improving anything.
+# Substantive table problems are still caught by MD056 (column count).
+#
+# Note: this rule only exists in markdownlint >= 0.40, which the CI action uses.
+# The pinned markdownlint-cli2 devDependency resolves an older markdownlint, so
+# `npm run lint:md` and CI can disagree. Aligning those versions is tracked with
+# the wider CI work.
+MD060: false

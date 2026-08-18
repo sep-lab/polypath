@@ -1,0 +1,18 @@
+{
+  "rewrites": [
+    { "source": "/health", "destination": "/api/sub" },
+    { "source": "/sub/:path*", "destination": "/api/sub" },
+    { "source": "/mtproto/:path*", "destination": "/api/sub" },
+    { "source": "/probe", "destination": "/api/sub" },
+    { "source": "/probe/:path*", "destination": "/api/sub" }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Robots-Tag", "value": "noindex, nofollow" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" }
+      ]
+    }
+  ]
+}

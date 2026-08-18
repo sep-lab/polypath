@@ -1,0 +1,7 @@
+---
+base_packages:
+  - fail2ban
+  - ufw
+  - unattended-upgrades
+  - curl
+  - jq

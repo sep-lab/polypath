@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# ═══════════════════════════════════════════════════════════════════
+# server-config.sh — Shared server connection definitions
+# ═══════════════════════════════════════════════════════════════════
+#
+# All deploy scripts and operational tools source this file.
+# This file is gitignored — copy from server-config.sh.example
+# and fill in real values.
+#
+# Usage in scripts:
+#   SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+#   source "$SCRIPT_DIR/server-config.sh" 2>/dev/null \
+#     || source "$SCRIPT_DIR/../server-config.sh" 2>/dev/null \
+#     || { echo "❌ server-config.sh not found. Copy from server-config.sh.example"; exit 1; }
+# ═══════════════════════════════════════════════════════════════════
+
+# ── Server IPs ─────────────────────────────────────────────────────
+HEL_IP="<HEL_IP>"
+ORC_IP="<ORC_IP>"
+GCP_IP="<GCP_IP>"
+SCW_IP="<SCW_IP>"
+
+# ── SSH targets ────────────────────────────────────────────────────
+HEL_SSH="root@${HEL_IP}"
+ORC_SSH="ubuntu@${ORC_IP}"
+GCP_SSH="ubuntu@${GCP_IP}"
+SCW_SSH="root@${SCW_IP}"
+
+# ── Arrays (used by multi-server scripts) ──────────────────────────
+declare -a ALL_IPS=("$HEL_IP" "$ORC_IP" "$GCP_IP" "$SCW_IP")
+declare -a ALL_SSH=("$HEL_SSH" "$ORC_SSH" "$GCP_SSH" "$SCW_SSH")
+declare -a ALL_TAGS=("helsinki" "oracle-madrid" "gcp-dammam" "scaleway-london")
+declare -a ALL_NAMES=("Helsinki" "Oracle-Madrid" "GCP-ME" "Scaleway-London")
+declare -a SUDO_PREFIX=("" "sudo" "sudo" "")
+
+# ── Helper: get SSH address by server tag ──────────────────────────
+get_ssh() {
+  case "$1" in
+    helsinki)  echo "$HEL_SSH" ;;
+    oracle)   echo "$ORC_SSH" ;;
+    gcp)      echo "$GCP_SSH" ;;
+    scaleway) echo "$SCW_SSH" ;;
+    *) echo "Unknown server: $1" >&2; return 1 ;;
+  esac
+}
+
+# ── Helper: get IP by server tag ───────────────────────────────────
+get_ip() {
+  case "$1" in
+    helsinki)  echo "$HEL_IP" ;;
+    oracle)   echo "$ORC_IP" ;;
+    gcp)      echo "$GCP_IP" ;;
+    scaleway) echo "$SCW_IP" ;;
+    *) echo "Unknown server: $1" >&2; return 1 ;;
+  esac
+}

@@ -1,0 +1,14 @@
+---
+# Protocol-only updates — skips base role to avoid touching system config
+- name: Protocol configuration
+  hosts: vpn_servers
+  roles:
+    - haproxy
+    - singbox
+    - xray
+    - { role: shadowtls, when: has_shadowtls | default(false) }
+    - { role: naiveproxy, when: has_naiveproxy | default(false) }
+    - { role: cloak, when: has_cloak | default(false) }
+    - { role: finalmask, when: has_finalmask | default(false) }
+    - { role: amneziawg, when: has_amneziawg | default(false) }
+    - warp

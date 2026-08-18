@@ -1,0 +1,43 @@
+{
+  "title": "ISP Tuning Configuration",
+  "type": "object",
+  "required": ["fragment", "isp_fragments", "asn_to_isp", "mux", "isp_dns_resolvers"],
+  "definitions": {
+    "fragmentSettings": {
+      "type": "object",
+      "required": ["packets", "length", "interval"],
+      "properties": {
+        "packets": { "type": "string" },
+        "length": { "type": "string", "pattern": "^\\d+-\\d+$" },
+        "interval": { "type": "string", "pattern": "^\\d+-\\d+$" }
+      }
+    }
+  },
+  "properties": {
+    "fragment": { "$ref": "#/definitions/fragmentSettings" },
+    "isp_fragments": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/definitions/fragmentSettings" }
+    },
+    "asn_to_isp": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "mux": {
+      "type": "object",
+      "required": ["protocol", "max_concurrency", "padding"],
+      "properties": {
+        "protocol": { "type": "string" },
+        "max_concurrency": { "type": "integer", "minimum": 1 },
+        "padding": { "type": "boolean" }
+      }
+    },
+    "isp_dns_resolvers": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": { "type": "string", "format": "ipv4" }
+      }
+    }
+  }
+}

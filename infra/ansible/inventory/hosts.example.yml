@@ -1,0 +1,29 @@
+---
+# Single-server inventory — the starting point for your own deployment.
+#
+#   cp inventory/hosts.example.yml inventory/hosts.yml
+#
+# hosts.yml in this repo describes a four-server fleet. You do not need that
+# to start: one server runs the full protocol stack.
+#
+# Server addresses come from the environment so they are never committed:
+#   export MY_SERVER_IP=203.0.113.10
+
+all:
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+    # Your domain. Point cdn/web subdomains at it — see docs/guides/quickstart.md
+    domain: example.com
+  children:
+    vpn_servers:
+      hosts:
+        myserver:
+          ansible_host: "{{ lookup('env', 'MY_SERVER_IP') }}"
+          # Most cloud images use root (Hetzner, Scaleway) or a sudo user
+          # (Oracle, GCP, AWS use ubuntu). Set ansible_become for the latter.
+          ansible_user: root
+          # ansible_become: true
+          ansible_ssh_private_key_file: ~/.ssh/id_ed25519
+          server_tag: my
+          server_location: Somewhere
+          server_provider: YourProvider

@@ -1,0 +1,202 @@
+name: RIPE Atlas Iran Monitor
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'  # Every 6 hours
+  workflow_dispatch:
+    inputs:
+      measurement_ids:
+        description: 'Comma-separated RIPE Atlas measurement IDs (leave empty to use secret)'
+        required: false
+
+jobs:
+  check-iran-reachability:
+    runs-on: ubuntu-latest
+    env:
+      HAS_TELEGRAM: ${{ secrets.TELEGRAM_BOT_TOKEN != '' }}
+    steps:
+      - name: Check RIPE Atlas measurements
+        id: atlas
+        env:
+          # No API key needed — public measurements are readable without auth
+          RIPE_ATLAS_API_KEY: ${{ secrets.RIPE_ATLAS_API_KEY }}
+          MEASUREMENT_IDS: ${{ github.event.inputs.measurement_ids || secrets.RIPE_ATLAS_MEASUREMENT_IDS }}
+        run: |
+          if [ -z "$MEASUREMENT_IDS" ]; then
+            echo "No measurement IDs configured. Set RIPE_ATLAS_MEASUREMENT_IDS secret."
+            echo "status=skipped" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          API="https://atlas.ripe.net/api/v2"
+          RESULTS="[]"
+          BLOCKED=0
+          TOTAL=0
+
+          # Build auth header only if key is available (optional)
+          AUTH_HEADER=""
+          if [ -n "${RIPE_ATLAS_API_KEY:-}" ]; then
+            AUTH_HEADER="-H \"Authorization: Key ${RIPE_ATLAS_API_KEY}\""
+          fi
+
+          IFS=',' read -ra IDS <<< "$MEASUREMENT_IDS"
+          for MSM_ID in "${IDS[@]}"; do
+            MSM_ID=$(echo "$MSM_ID" | tr -d ' ')
+            [ -z "$MSM_ID" ] && continue
+            TOTAL=$((TOTAL + 1))
+
+            echo "Checking measurement $MSM_ID..."
+
+            # Get measurement metadata (public measurements work without auth)
+            if [ -n "${RIPE_ATLAS_API_KEY:-}" ]; then
+              META=$(curl -s -H "Authorization: Key ${RIPE_ATLAS_API_KEY}" \
+                "${API}/measurements/${MSM_ID}/" 2>/dev/null)
+              LATEST=$(curl -s -H "Authorization: Key ${RIPE_ATLAS_API_KEY}" \
+                "${API}/measurements/${MSM_ID}/latest/?format=json" 2>/dev/null)
+            else
+              META=$(curl -s "${API}/measurements/${MSM_ID}/" 2>/dev/null)
+              LATEST=$(curl -s "${API}/measurements/${MSM_ID}/latest/?format=json" 2>/dev/null)
+            fi
+
+            DESC=$(echo "$META" | jq -r '.description // "unknown"' 2>/dev/null)
+            TYPE=$(echo "$META" | jq -r '.type // "unknown"' 2>/dev/null)
+            TARGET=$(echo "$META" | jq -r '.target // "unknown"' 2>/dev/null)
+
+            # Check if any probe got through
+            PROBE_COUNT=$(echo "$LATEST" | jq 'if type == "array" then length else 0 end' 2>/dev/null || echo "0")
+
+            if [ "$TYPE" = "traceroute" ]; then
+              # For traceroute: check if destination was reached (last hop has RTT)
+              REACHED=$(echo "$LATEST" | jq '[.[] | select(.result[-1].result[]?.rtt? != null)] | length' 2>/dev/null || echo "0")
+            elif [ "$TYPE" = "dns" ]; then
+              # For DNS: check if resolution succeeded
+              REACHED=$(echo "$LATEST" | jq '[.[] | select(
+                (.result.answers? != null and (.result.answers | length) > 0) or
+                (.resultset?[]?.result?[]?.answers? != null)
+              )] | length' 2>/dev/null || echo "0")
+              # Fallback: check for NOERROR in any result
+              if [ "$REACHED" = "0" ] || [ "$REACHED" = "null" ]; then
+                REACHED=$(echo "$LATEST" | jq '[.[] | select(
+                  .resultset?[]?.result? // "" | tostring | test("NOERROR")
+                )] | length' 2>/dev/null || echo "0")
+              fi
+            elif [ "$TYPE" = "sslcert" ]; then
+              # For SSL/TLS: check if cert was retrieved
+              REACHED=$(echo "$LATEST" | jq '[.[] | select(.cert? != null or (.cert | length) > 0 or .rt? > 0)] | length' 2>/dev/null || echo "0")
+            elif [ "$TYPE" = "ping" ]; then
+              # For ping: check if any reply received
+              REACHED=$(echo "$LATEST" | jq '[.[] | select(.avg? != null and .avg > 0)] | length' 2>/dev/null || echo "0")
+            else
+              REACHED="$PROBE_COUNT"
+            fi
+
+            # Sanitize
+            REACHED=$(echo "$REACHED" | tr -cd '0-9')
+            REACHED="${REACHED:-0}"
+
+            STATUS="up"
+            if [ "$PROBE_COUNT" -gt 0 ] && [ "$REACHED" = "0" ]; then
+              STATUS="blocked"
+              BLOCKED=$((BLOCKED + 1))
+            elif [ "$PROBE_COUNT" = "0" ]; then
+              STATUS="no-data"
+            elif [ "$REACHED" -lt "$PROBE_COUNT" ]; then
+              STATUS="partial"
+            fi
+
+            echo "  $DESC: $STATUS ($REACHED/$PROBE_COUNT probes reached)"
+
+            RESULTS=$(echo "$RESULTS" | jq \
+              --arg id "$MSM_ID" \
+              --arg desc "$DESC" \
+              --arg type "$TYPE" \
+              --arg target "$TARGET" \
+              --arg status "$STATUS" \
+              --argjson probes "$PROBE_COUNT" \
+              --argjson reached "${REACHED:-0}" \
+              '. += [{"id": $id, "desc": $desc, "type": $type, "target": $target, "status": $status, "probes": $probes, "reached": $reached}]')
+          done
+
+          echo "results=$(echo "$RESULTS" | jq -c .)" >> $GITHUB_OUTPUT
+          echo "blocked=$BLOCKED" >> $GITHUB_OUTPUT
+          echo "total=$TOTAL" >> $GITHUB_OUTPUT
+          echo "status=done" >> $GITHUB_OUTPUT
+
+      - name: Report to smart-sub worker
+        if: steps.atlas.outputs.status == 'done'
+        env:
+          ADMIN_UUID: ${{ secrets.ADMIN_UUID }}
+        run: |
+          REPORT=$(jq -n \
+            --argjson results '${{ steps.atlas.outputs.results }}' \
+            --arg blocked '${{ steps.atlas.outputs.blocked }}' \
+            --arg total '${{ steps.atlas.outputs.total }}' \
+            '{
+              timestamp: (now | todate),
+              source: "ripe-atlas",
+              isp: "RIPE Atlas (Iranian probes)",
+              country: "IR",
+              city: "Multiple",
+              total_tests: ($total | tonumber),
+              up: (($total | tonumber) - ($blocked | tonumber)),
+              down: ($blocked | tonumber),
+              results: ($results | map({
+                test: .type,
+                target: .target,
+                status: .status,
+                latency_ms: 0,
+                detail: .desc,
+                measurement_id: .id,
+                probes_reached: .reached,
+                probes_total: .probes
+              }))
+            }')
+
+          curl -s -X POST "https://sub.example.com/probe/report" \
+            -H "Content-Type: application/json" \
+            -d "$REPORT" || echo "Failed to report to worker"
+
+      - name: Alert on blocking (Telegram)
+        if: |
+          steps.atlas.outputs.status == 'done'
+          && steps.atlas.outputs.blocked != '0'
+          && env.HAS_TELEGRAM == 'true'
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          BLOCKED="${{ steps.atlas.outputs.blocked }}"
+          TOTAL="${{ steps.atlas.outputs.total }}"
+
+          MSG="🇮🇷 *RIPE Atlas Iran Alert*%0A"
+          MSG+="Blocked: ${BLOCKED}/${TOTAL} measurements%0A%0A"
+
+          echo '${{ steps.atlas.outputs.results }}' | jq -r '.[] |
+            (if .status == "blocked" then "🔴" elif .status == "partial" then "🟡" elif .status == "up" then "🟢" else "⚪" end) +
+            " " + .desc + " (" + .status + " " + (.reached|tostring) + "/" + (.probes|tostring) + ")"' | \
+          while IFS= read -r line; do
+            MSG+="${line}%0A"
+          done
+
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d "chat_id=${TELEGRAM_CHAT_ID}" \
+            -d "text=${MSG}" \
+            -d "parse_mode=Markdown" || echo "Telegram alert failed"
+
+      - name: Alert on blocking (GitHub)
+        if: steps.atlas.outputs.status == 'done' && steps.atlas.outputs.blocked != '0'
+        run: |
+          echo "::warning::${{ steps.atlas.outputs.blocked }}/${{ steps.atlas.outputs.total }} RIPE Atlas measurements show blocking from Iran!"
+          echo '${{ steps.atlas.outputs.results }}' | jq .
+
+      - name: Summary
+        if: always()
+        run: |
+          if [ "${{ steps.atlas.outputs.status }}" = "skipped" ]; then
+            echo "⚠️ No measurement IDs configured. Set RIPE_ATLAS_MEASUREMENT_IDS secret."
+            echo "Create measurements at: https://atlas.ripe.net/measurements/create/"
+            exit 0
+          fi
+          echo "RIPE Atlas check complete."
+          echo "Blocked: ${{ steps.atlas.outputs.blocked || '0' }}/${{ steps.atlas.outputs.total || '0' }}"
+          echo '${{ steps.atlas.outputs.results }}' | jq -r '.[] | "  " + .desc + ": " + .status' 2>/dev/null || true

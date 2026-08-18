@@ -1,0 +1,5 @@
+---
+- name: Configure AmneziaWG
+  ansible.builtin.debug:
+    msg: "AmneziaWG configured via sing-box wireguard inbound"
+  when: has_amneziawg | default(false)

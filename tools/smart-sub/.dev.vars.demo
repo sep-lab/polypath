@@ -1,0 +1,74 @@
+# ── Demo fixture — committed on purpose, safe to publish ──────────
+#
+# Every value here is FAKE and syntactically valid, so the worker runs
+# end-to-end and generates real-looking configs from fictional servers.
+#
+#   npm run demo
+#
+# IPs are RFC5737/RFC3849 documentation ranges (203.0.113.0/24, 2001:db8::/32)
+# which are reserved for exactly this purpose and route nowhere.
+#
+# This file exists so you can evaluate the project without a VPS, a domain,
+# a Cloudflare account, or asking anyone for credentials. For a real
+# deployment copy .dev.vars.example to .dev.vars instead.
+
+# ── User UUIDs ────────────────────────────────────────────────────
+ADMIN_UUID=00000000-0000-4000-8000-000000000001
+FAMILY_UUID=00000000-0000-4000-8000-000000000002
+TEST_UUID=00000000-0000-4000-8000-000000000003
+TEST_UUID_EXPIRES=2099-12-31
+
+# ── Probe reporting (scoped; never equal to ADMIN_UUID) ───────────
+# ── Admin API credential ─────────────────────────────────────────
+# Separate from ADMIN_UUID so the admin credential can be rotated without
+# invalidating a user's subscription. If unset, ADMIN_UUID is used.
+ADMIN_TOKEN=demo-admin-token-0000000000000000
+
+PROBE_TOKEN=demo-probe-token-0000000000000000
+
+# ── Shared protocol secrets ───────────────────────────────────────
+SHADOWTLS_PASSWORD=demo-shadowtls-password
+SALAMANDER_PASSWORD=demo-salamander-password
+SS_USER_KEY=ZGVtb3NzdXNlcmtleTAwMDAwMDAwMDAwMDA=
+FINALMASK_SEED=demo-finalmask-seed
+
+# ── EDtunnel / relays ─────────────────────────────────────────────
+EDTUNNEL_PAGES=demo-page-1.pages.dev,demo-page-2.pages.dev
+
+# ── Helsinki (Hetzner) ────────────────────────────────────────────
+HEL_IP=203.0.113.10
+HEL_IPV6=2001:db8::10
+HEL_SS_KEY=ZGVtb2hlbHNzc2VydmVya2V5MDAwMDAwMA=
+HEL_NAIVE_PASS=demo-hel-naive-password
+HEL_REALITY_PUBKEY=ZGVtb2hlbHJlYWxpdHlwdWJrZXkwMDAwMDAwMDAwMA
+HEL_REALITY_SHORT_ID=aa00000000000001
+HEL_MTPROTO_SECRET=ee111111111111111111111111111111116578616d706c652e636f6d
+
+# ── Oracle Madrid ─────────────────────────────────────────────────
+ORC_IP=203.0.113.11
+ORC_SS_KEY=ZGVtb29yY3Nzc2VydmVya2V5MDAwMDAwMA=
+ORC_NAIVE_PASS=demo-orc-naive-password
+ORC_REALITY_PUBKEY=ZGVtb29yY3JlYWxpdHlwdWJrZXkwMDAwMDAwMDAwMA
+ORC_REALITY_SHORT_ID=aa00000000000002
+ORC_MTPROTO_SECRET=ee222222222222222222222222222222226578616d706c652e636f6d
+
+# ── GCP Dammam ────────────────────────────────────────────────────
+GCP_IP=203.0.113.12
+GCP_SS_KEY=ZGVtb2djcHNzc2VydmVya2V5MDAwMDAwMA=
+GCP_REALITY_PUBKEY=ZGVtb2djcHJlYWxpdHlwdWJrZXkwMDAwMDAwMDAwMA
+GCP_REALITY_SHORT_ID=aa00000000000003
+GCP_MTPROTO_SECRET=ee333333333333333333333333333333336578616d706c652e636f6d
+
+# ── Scaleway London ───────────────────────────────────────────────
+SCW_IP=203.0.113.13
+SCW_IPV6=2001:db8::13
+SCW_SS_KEY=ZGVtb3Njd3Nzc2VydmVya2V5MDAwMDAwMA=
+SCW_NAIVE_PASS=demo-scw-naive-password
+SCW_REALITY_PUBKEY=ZGVtb3Njd3JlYWxpdHlwdWJrZXkwMDAwMDAwMDAwMA
+SCW_REALITY_SHORT_ID=aa00000000000004
+SCW_MTPROTO_SECRET=ee444444444444444444444444444444446578616d706c652e636f6d
+SCW_CLOAK_UID=ZGVtb2Nsb2FrdWlkMDAwMA==
+SCW_CLOAK_PUBKEY=ZGVtb2Nsb2FrcHVia2V5MDAwMDAwMDAwMDA=
+
+# ── Limits ────────────────────────────────────────────────────────
+FREE_SERVER_LIMIT=2

@@ -1,0 +1,19 @@
+---
+# Shared variables for all VPN servers
+domain: example.com
+reality_sni: www.google.com
+hy2_port: 8443
+haproxy_port: 443
+xhttp_port: 10081
+ss2022_port: 80
+cdn_ws_path: /ws
+xhttp_path: /xhttp
+
+# UFW allowed ports
+ufw_rules:
+  - { port: 22, proto: tcp, comment: SSH }
+  - { port: 80, proto: tcp, comment: HAProxy+XrayHTTP }
+  - { port: 443, proto: tcp, comment: HAProxy+Reality }
+  - { port: 8443, proto: udp, comment: Hysteria2 }
+  - { port: 53, proto: tcp, comment: DNS tunnel }
+  - { port: 53, proto: udp, comment: DNS tunnel }

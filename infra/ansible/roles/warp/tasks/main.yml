@@ -1,0 +1,21 @@
+---
+- name: Register WARP device via warp-cli
+  ansible.builtin.command:
+    cmd: docker run --rm cloudflare/cloudflared:latest warp-cli register
+  args:
+    creates: /opt/warp/.registered
+  # WARP registration may fail if already registered or if cloudflared
+  # is not available — this is non-fatal as WARP keys can be set manually
+  failed_when: false
+
+- name: Create WARP config directory
+  ansible.builtin.file:
+    path: /opt/warp
+    state: directory
+    mode: "0750"
+
+- name: Template WARP config
+  ansible.builtin.template:
+    src: warp-config.j2
+    dest: /opt/warp/warp.conf
+    mode: "0640"

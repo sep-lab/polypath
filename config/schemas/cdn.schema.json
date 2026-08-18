@@ -1,0 +1,30 @@
+{
+  "title": "CDN Configuration",
+  "type": "object",
+  "required": ["cf_clean_ips", "alt_reality_snis", "whitelisted_hosts", "edtunnel"],
+  "properties": {
+    "cf_clean_ips": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "format": "ipv4" }
+    },
+    "alt_reality_snis": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "whitelisted_hosts": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "edtunnel": {
+      "type": "object",
+      "required": ["path", "port"],
+      "properties": {
+        "path": { "type": "string" },
+        "port": { "type": "integer", "minimum": 1, "maximum": 65535 }
+      }
+    }
+  }
+}

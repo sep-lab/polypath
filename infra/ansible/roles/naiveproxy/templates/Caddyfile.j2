@@ -1,0 +1,10 @@
+:{{ naiveproxy_port }}, {{ naive_host }} {
+  route {
+    forward_proxy {
+      basic_auth {{ naive_user }} {{ naive_pass }}
+      hide_ip
+      hide_via
+    }
+  }
+  tls {{ naive_email | default('admin@' + domain) }}
+}

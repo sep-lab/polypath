@@ -1,0 +1,16 @@
+---
+- name: Install ShadowTLS via Docker
+  community.docker.docker_container:
+    name: shadowtls
+    image: ghcr.io/ihciah/shadow-tls:latest
+    restart_policy: always
+    network_mode: host
+    env:
+      MODE: server
+      V3: "1"
+      LISTEN: "0.0.0.0:{{ shadowtls_port }}"
+      SERVER: "127.0.0.1:{{ ss2022_port }}"
+      TLS: "{{ shadowtls_handshake_server }}:443"
+      PASSWORD: "{{ shadowtls_password }}"
+    state: started
+  when: has_shadowtls | default(false)

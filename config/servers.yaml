@@ -1,0 +1,172 @@
+# Server definitions — non-secret structural config
+# IPs and passwords come from env vars (see vars.env.example)
+# This is the source of truth for server topology
+
+servers:
+  - tag: "helsinki"
+    location: "Finland"
+    provider: "Hetzner"
+    ip_env: "HEL_IP"
+    ipv6_env: "HEL_IPV6"
+    reality:
+      port: 443
+      port_alt: 8443
+      pubkey_env: "HEL_REALITY_PUBKEY"
+      short_id_env: "HEL_REALITY_SHORT_ID"
+      sni: "www.google.com"
+    hy2_port: 8443
+    cdn_ws:
+      host: "cdn.example.com"
+      path: "/ws"
+      port: 443
+    xhttp_cdn:
+      host: "cdn.example.com"
+      path: "/xhttp"
+      port: 443
+    grpc_cdn:
+      host: "cdn.example.com"
+      service_name: "vpngrpc"
+      port: 443
+    http_obfs:
+      port: 80
+      host: "telewebion.com"
+      path: "/"
+    ss2022:
+      key_env: "HEL_SS_KEY"
+    naive:
+      host: "web.example.com"
+      pass_env: "HEL_NAIVE_PASS"
+    mtproto:
+      secret_env: "HEL_MTPROTO_SECRET"
+    has_dns_tunnel: true
+    cloak: null
+    amneziawg: null
+    relay: null
+    geo_restrict: null
+    enabled: true
+
+  - tag: "oracle-madrid"
+    location: "Madrid"
+    provider: "Oracle Cloud (Free)"
+    ip_env: "ORC_IP"
+    ipv6_env: null
+    reality:
+      port: 443
+      port_alt: 8443
+      pubkey_env: "ORC_REALITY_PUBKEY"
+      short_id_env: "ORC_REALITY_SHORT_ID"
+      sni: "dl.google.com"
+    hy2_port: 8443
+    cdn_ws:
+      host: "cdn2.example.com"
+      path: "/ws"
+      port: 443
+    xhttp_cdn:
+      host: "cdn2.example.com"
+      path: "/xhttp"
+      port: 443
+    grpc_cdn:
+      host: "cdn2.example.com"
+      service_name: "vpngrpc"
+      port: 443
+    http_obfs:
+      port: 80
+      host: "myket.ir"
+      path: "/"
+    ss2022:
+      key_env: "ORC_SS_KEY"
+    naive:
+      host: "web2.example.com"
+      pass_env: "ORC_NAIVE_PASS"
+    mtproto:
+      secret_env: "ORC_MTPROTO_SECRET"
+    has_dns_tunnel: true
+    cloak: null
+    amneziawg: null
+    relay: null
+    geo_restrict: null
+    enabled: true
+
+  - tag: "gcp-middle-east"
+    location: "Middle East (Dammam)"
+    provider: "Google Cloud ($300 credit)"
+    ip_env: "GCP_IP"
+    ipv6_env: null
+    reality:
+      port: 443
+      port_alt: 8443
+      pubkey_env: "GCP_REALITY_PUBKEY"
+      short_id_env: "GCP_REALITY_SHORT_ID"
+      sni: "www.google.com"
+    hy2_port: 8443
+    cdn_ws:
+      host: "cdn4.example.com"
+      path: "/ws"
+      port: 443
+    xhttp_cdn:
+      host: "cdn4.example.com"
+      path: "/xhttp"
+      port: 443
+    grpc_cdn:
+      host: "cdn4.example.com"
+      service_name: "vpngrpc"
+      port: 443
+    http_obfs:
+      port: 80
+      host: "aparat.com"
+      path: "/"
+    ss2022:
+      key_env: "GCP_SS_KEY"
+    naive: null
+    mtproto:
+      secret_env: "GCP_MTPROTO_SECRET"
+    has_dns_tunnel: false
+    cloak: null
+    amneziawg: null
+    relay: null
+    geo_restrict: null
+    enabled: true
+
+  - tag: "scaleway-london"
+    location: "London"
+    provider: "Scaleway"
+    ip_env: "SCW_IP"
+    ipv6_env: "SCW_IPV6"
+    reality:
+      port: 443
+      port_alt: 8443
+      pubkey_env: "SCW_REALITY_PUBKEY"
+      short_id_env: "SCW_REALITY_SHORT_ID"
+      sni: "www.microsoft.com"
+    hy2_port: 8443
+    cdn_ws:
+      host: "cdn3.example.com"
+      path: "/ws"
+      port: 443
+    xhttp_cdn:
+      host: "cdn3.example.com"
+      path: "/xhttp"
+      port: 443
+    grpc_cdn:
+      host: "cdn3.example.com"
+      service_name: "vpngrpc"
+      port: 443
+    http_obfs:
+      port: 80
+      host: "divar.ir"
+      path: "/"
+    ss2022:
+      key_env: "SCW_SS_KEY"
+    naive:
+      host: "web4.example.com"
+      pass_env: "SCW_NAIVE_PASS"
+    mtproto:
+      secret_env: "SCW_MTPROTO_SECRET"
+    has_dns_tunnel: true
+    cloak:
+      uid_env: "SCW_CLOAK_UID"
+      pubkey_env: "SCW_CLOAK_PUBKEY"
+    amneziawg: null
+    relay: null
+    geo_restrict: null
+    enabled: true

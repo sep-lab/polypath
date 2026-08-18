@@ -1,0 +1,72 @@
+# Wrangler build artifacts
+.wrangler/
+tools/smart-sub/.wrangler/
+
+# Deployment secrets (NEVER commit)
+vars.env
+tools/deploy/vars.env
+*.env
+!vars.env.example
+
+# Decrypted sops secrets (NEVER commit — only .enc.yaml is tracked)
+config/secrets/*.yaml
+!config/secrets/*.enc.yaml
+!config/secrets/.gitkeep
+
+# Wrangler local dev secrets (NEVER commit)
+.dev.vars
+tools/smart-sub/.dev.vars
+
+# Server connection config (contains real IPs)
+tools/server-config.sh
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+*.swp
+*.swo
+*~
+.idea/
+
+# Node
+node_modules/
+
+# Test coverage
+coverage/
+
+# Private keys & certificates
+*.pem
+*.key
+
+# Local npm overrides
+.npmrc
+
+# Temporary files
+*.tmp
+*.log
+*.bak
+/tmp/
+
+# Local Netlify folder
+.netlify
+.vercel
+.env*.local
+dist/
+src/generated-config.js
+docs/api-reference/
+tmp-check.mjs
+tmp-debug.mjs
+node_modules_old/
+
+# Terraform/OpenTofu secrets (NEVER commit)
+infra/terraform/**/*.tfvars
+!infra/terraform/**/*.tfvars.example
+infra/terraform/**/.terraform/
+infra/terraform/**/plan.tfplan
+infra/terraform/**/plan.txt
+
+# local-only agent permissions (never publish)
+.claude/settings.json

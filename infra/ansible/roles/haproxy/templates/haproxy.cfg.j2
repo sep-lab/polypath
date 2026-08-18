@@ -1,0 +1,58 @@
+global
+    log /dev/log local0
+    maxconn {{ haproxy_maxconn }}
+    user haproxy
+    group haproxy
+    daemon
+
+defaults
+    log global
+    mode tcp
+    option tcplog
+    timeout connect 5s
+    timeout client 30s
+    timeout server 30s
+
+# ── Frontend: Port 443 TCP — SNI routing ────────────────────────
+frontend ft_443
+    bind *:443
+    mode tcp
+    tcp-request inspect-delay 5s
+    tcp-request content accept if { req_ssl_hello_type 1 }
+    default_backend bk_reality
+
+backend bk_reality
+    mode tcp
+    server singbox 127.0.0.1:1443 check
+
+# ── Frontend: Port 80 TCP — path/protocol routing ───────────────
+frontend ft_80
+    bind *:80
+    mode tcp
+    tcp-request inspect-delay 5s
+    tcp-request content accept if HTTP
+
+    acl is_ws path_beg /ws
+    acl is_xhttp path_beg /xhttp
+    acl is_http req.proto_http
+
+    use_backend bk_cdn_ws if is_ws is_http
+    use_backend bk_xhttp if is_xhttp is_http
+    use_backend bk_xrayhttp if is_http
+    default_backend bk_ss2022
+
+backend bk_cdn_ws
+    mode tcp
+    server singbox-ws 127.0.0.1:10080 check
+
+backend bk_xhttp
+    mode tcp
+    server xray-xhttp 127.0.0.1:10081 check
+
+backend bk_xrayhttp
+    mode tcp
+    server xray-http 127.0.0.1:10082 check
+
+backend bk_ss2022
+    mode tcp
+    server xray-ss 127.0.0.1:10083 check

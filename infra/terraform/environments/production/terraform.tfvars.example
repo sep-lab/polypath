@@ -1,0 +1,19 @@
+# Example terraform.tfvars — copy to terraform.tfvars and fill in real values
+# DO NOT commit terraform.tfvars (it is gitignored)
+
+hetzner_ssh_public_key     = "ssh-ed25519 AAAA... your-key-here"
+hetzner_token              = "<HETZNER_API_TOKEN>"
+
+oracle_compartment_id      = "ocid1.compartment.oc1..aaaaa..."
+oracle_availability_domain = "ABCd:EU-MADRID-1-AD-1"
+oracle_ssh_public_key      = "ssh-ed25519 AAAA... your-key-here"
+oracle_image_ocid          = "ocid1.image.oc1.<region>.aaaaa..."
+
+gcp_project_id             = "your-gcp-project-id"
+gcp_ssh_public_key         = "ssh-ed25519 AAAA... your-key-here"
+
+scaleway_ssh_public_key    = "ssh-ed25519 AAAA... your-key-here"
+
+cloudflare_zone_id         = "<ZONE_ID>"
+cloudflare_account_id      = "<ACCOUNT_ID>"
+cloudflare_api_token       = "<API_TOKEN>"

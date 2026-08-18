@@ -1,0 +1,10 @@
+version: "3.8"
+services:
+  xray:
+    image: {{ xray_image }}
+    container_name: xray
+    restart: always
+    network_mode: host
+    volumes:
+      - ./config.json:/etc/xray/config.json:ro
+    command: run -c /etc/xray/config.json

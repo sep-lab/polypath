@@ -1,0 +1,12 @@
+# SOPS configuration — encrypted secrets management
+# See docs/guides/secrets-management.md for setup instructions
+#
+# To encrypt a file:   sops --encrypt --in-place config/secrets/servers.yaml
+# To edit in-place:    sops config/secrets/servers.enc.yaml
+# To decrypt to stdout: sops --decrypt config/secrets/servers.enc.yaml
+
+creation_rules:
+  # Encrypt all YAML files under config/secrets/
+  - path_regex: config/secrets/.*\.enc\.yaml$
+    age: >-
+      age1xkz6qcj7yywjzqkxd7rs6fcvl0nzdt5uygvrt2f38j7d4umstd6qp6jkk5

@@ -1,0 +1,11 @@
+{
+  "name": "vercel-relay",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Vercel Edge relay for VPN traffic — CDN diversity layer",
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel --prod",
+    "deploy:preview": "vercel"
+  }
+}

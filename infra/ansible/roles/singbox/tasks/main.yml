@@ -1,0 +1,32 @@
+---
+- name: Create /opt/engine directory
+  ansible.builtin.file:
+    path: /opt/engine
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: Template sing-box docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: /opt/engine/docker-compose.yml
+    owner: root
+    group: root
+    mode: "0640"
+  notify: Restart singbox
+
+- name: Template sing-box engine.conf
+  ansible.builtin.template:
+    src: engine.conf.j2
+    dest: /opt/engine/engine.conf
+    owner: root
+    group: root
+    mode: "0640"
+  notify: Restart singbox
+
+- name: Start sing-box container
+  community.docker.docker_compose_v2:
+    project_src: /opt/engine
+    state: present
+    pull: always

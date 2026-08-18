@@ -1,0 +1,42 @@
+{
+  "name": "polypath",
+  "private": true,
+  "version": "5.12.0",
+  "type": "module",
+  "scripts": {
+    "dev": "cd tools/smart-sub && npx wrangler dev worker.js --port 8787",
+    "demo": "npm run build --silent && node scripts/demo.js",
+    "typecheck": "tsc --noEmit",
+    "build": "npm run build:config && esbuild tools/smart-sub/src/index.ts --bundle --format=esm --outfile=tools/smart-sub/worker.js --platform=browser --banner:js='// GENERATED FILE \u2014 do not edit. Change src/ modules and run: npm run build' && cp tools/smart-sub/worker.js tools/backup-sub/core-worker.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:smoke": "bash tests/smoke.test.sh",
+    "lint:sh": "find tools -name '*.sh' -exec bash -n {} +",
+    "lint:md": "npx markdownlint-cli2 '**/*.md' '#node_modules'",
+    "lint:openapi": "npx @redocly/cli lint docs/openapi.yaml",
+    "docs:api": "npx @redocly/cli build-docs docs/openapi.yaml -o docs/api-reference/index.html",
+    "validate:config": "node scripts/validate-config.js",
+    "build:config": "node scripts/build-config.js",
+    "docs:generate": "node scripts/generate-docs.js",
+    "deploy": "cd tools/smart-sub && npm run deploy",
+    "deploy:backup": "cd tools/smart-sub && npm run deploy:backup",
+    "ansible:inventory": "node scripts/generate-ansible-inventory.js",
+    "tofu:vars": "node scripts/generate-terraform-vars.js"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260317.1",
+    "@commitlint/cli": "^19.8.0",
+    "@commitlint/config-conventional": "^19.8.0",
+    "@redocly/cli": "^1.28.0",
+    "@vitest/coverage-v8": "^4.0.18",
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "esbuild": "^0.27.4",
+    "js-yaml": "^4.1.0",
+    "markdownlint-cli2": "^0.17.0",
+    "typescript": "^6.0.2",
+    "vitest": "^4.0.18",
+    "wrangler": "^4.77.0"
+  }
+}

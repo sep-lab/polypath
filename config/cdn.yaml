@@ -1,0 +1,41 @@
+# CDN infrastructure, clean IPs, SNIs, whitelisted hosts
+# Source of truth for all CDN-related hardcoded values in worker.js
+
+# Cloudflare clean IPs.
+# These are public Cloudflare anycast edge addresses, not secrets. Which ones
+# perform well is network- and time-specific, so treat this as a starting set
+# and rescan for your own users rather than trusting it.
+# Users can find optimal IPs using CFScanner: https://github.com/MortezaBashwordy/CFScanner
+cf_clean_ips:
+  - "104.18.202.232"
+  - "172.67.71.160"
+  - "104.20.149.56"
+  - "141.101.113.153"
+  - "162.159.130.234"
+  - "188.114.97.3"
+  - "188.114.98.224"
+  - "104.16.132.229"
+
+# Alternative Reality SNIs — rotate when Iran blocks specific SNIs
+alt_reality_snis:
+  - "yahoo.com"
+  - "dl.google.com"
+
+# Whitelisted Iranian hosts for TCP+HTTP obfuscation (XrayHTTP)
+# DPI sees fake HTTP GET/POST to these domestic hosts
+whitelisted_hosts:
+  - "varzesh3.com"
+  - "speedtest.net"
+  - "tgju.org"
+  - "cafebazaar.ir"
+  - "digikala.com"
+  - "soft98.ir"
+  - "bartarinha.ir"
+  - "aparat.com"
+  - "myket.ir"
+  - "telewebion.com"
+
+# EDtunnel defaults (pages list comes from env var EDTUNNEL_PAGES)
+edtunnel:
+  path: "/?ed=2048"
+  port: 443

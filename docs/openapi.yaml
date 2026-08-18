@@ -1,0 +1,1158 @@
+openapi: 3.1.0
+info:
+  title: VPN Smart-Sub Worker API
+  version: 5.9.0
+  description: Censorship-resistant VPN subscription API generating multi-protocol configs
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://sub.example.com
+    description: Primary (Cloudflare Pages)
+  - url: https://sub.example.net
+    description: Backup (Vercel Edge)
+
+tags:
+  - name: Health
+    description: Server health checks and reporting
+  - name: Subscription
+    description: VPN subscription config generation
+  - name: Admin Users
+    description: User management (admin only)
+  - name: Admin Servers
+    description: Server management (admin only)
+  - name: Probes
+    description: Network probe collection and reporting
+  - name: Diagnostic
+    description: User-facing diagnostic utilities
+
+security: []
+
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      summary: Server health status
+      description: >
+        Returns health status of all servers. Optionally pass admin UUID
+        via `key` query param to include sensitive fields (ip, provider, enabled).
+      tags: [Health]
+      security:
+        - {}
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AdminKeyOptional'
+      responses:
+        '200':
+          description: Health status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              examples:
+                public:
+                  summary: Public view
+                  value:
+                    servers:
+                      - tag: HEL
+                        location: Helsinki, FI
+                        protocols: [reality, hy2, xhttp, shadowtls]
+                        health: healthy
+                        latency_ms: null
+                        last_check: null
+                    server_count: 4
+                    checked_at: '2026-03-09T12:00:00.000Z'
+                admin:
+                  summary: Admin view (with key)
+                  value:
+                    servers:
+                      - tag: HEL
+                        location: Helsinki, FI
+                        protocols: [reality, hy2, xhttp, shadowtls]
+                        health: healthy
+                        latency_ms: null
+                        last_check: null
+                        ip: 1.2.3.4
+                        provider: Hetzner
+                        enabled: true
+                    server_count: 4
+                    checked_at: '2026-03-09T12:00:00.000Z'
+
+  /health/report:
+    post:
+      operationId: postHealthReport
+      summary: Submit health check results
+      tags: [Health]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [results]
+              properties:
+                results:
+                  type: array
+                  items:
+                    type: object
+                    required: [tag, status]
+                    properties:
+                      tag:
+                        type: string
+                        example: HEL
+                      status:
+                        type: string
+                        enum: [healthy, degraded, down]
+                        example: healthy
+                      latency_ms:
+                        type: integer
+                        example: 45
+      responses:
+        '200':
+          description: Report accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+                  updated:
+                    type: integer
+                    example: 1
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /stats:
+    get:
+      operationId: getStats
+      summary: Worker statistics (admin)
+      tags: [Health]
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AdminKeyRequired'
+      responses:
+        '200':
+          description: Worker statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatsResponse'
+              example:
+                servers:
+                  - tag: helsinki
+                    location: Finland
+                    enabled: true
+                    health:
+                      status: unknown
+                users:
+                  - name: alice
+                    tier: premium
+                    enabled: true
+                    source: env
+                    uuid_prefix: a1b2c3
+                sub_requests:
+                  today: {}
+                  yesterday: {}
+                total_servers: 4
+                total_users: 5
+                worker_version: '5.9.0'
+                checked_at: '2026-03-09T12:00:00.000Z'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /sub/{uuid}:
+    get:
+      operationId: getSubscription
+      summary: Generate VPN subscription configs
+      description: >
+        Returns multi-protocol VPN configs for the given user UUID.
+        The UUID in the path acts as authentication.
+      tags: [Subscription]
+      security: []
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
+        - name: format
+          in: query
+          schema:
+            type: string
+            enum: [base64, json]
+            default: base64
+        - name: geo
+          in: query
+          description: Override geo detection
+          schema:
+            type: string
+            enum: [ir, global]
+        - name: mode
+          in: query
+          description: Special mode flag
+          schema:
+            type: string
+            enum: [shutdown]
+      responses:
+        '200':
+          description: Subscription configs
+          headers:
+            X-RateLimit-Limit:
+              $ref: '#/components/headers/X-RateLimit-Limit'
+            X-RateLimit-Remaining:
+              $ref: '#/components/headers/X-RateLimit-Remaining'
+            X-RateLimit-Reset:
+              $ref: '#/components/headers/X-RateLimit-Reset'
+          content:
+            text/plain:
+              schema:
+                type: string
+                description: Base64-encoded subscription lines (default format)
+              example: dmxlc3M6Ly9leGFtcGxlLi4uCnNzOi8vZXhhbXBsZS4uLg==
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubscriptionJsonResponse'
+              example:
+                configs:
+                  - 'vless://uuid@example.com:443?...'
+                  - 'ss://method:pass@host:port'
+                user: alice
+                geo:
+                  country: IR
+                  cdn_only: true
+                  fragment: true
+                  mux: true
+        '401':
+          description: Invalid or unknown UUID
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: Unauthorized
+        '403':
+          description: Expired subscription
+          content:
+            text/plain:
+              schema:
+                type: string
+        '404':
+          description: Malformed UUID format
+          content:
+            text/plain:
+              schema:
+                type: string
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /mtproto/{uuid}:
+    get:
+      operationId: getMtproto
+      summary: MTProto / Telegram proxy links
+      tags: [Subscription]
+      security: []
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
+        - name: format
+          in: query
+          schema:
+            type: string
+            enum: [json]
+      responses:
+        '200':
+          description: MTProto proxy links
+          content:
+            text/html:
+              schema:
+                type: string
+                description: HTML page with Telegram proxy links (default)
+            application/json:
+              schema:
+                type: object
+                description: JSON with proxy links (when format=json)
+        '401':
+          description: Invalid or unknown UUID
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: Unauthorized
+        '403':
+          description: Expired subscription
+          content:
+            text/plain:
+              schema:
+                type: string
+        '404':
+          description: Malformed UUID format
+          content:
+            text/plain:
+              schema:
+                type: string
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /diagnostic:
+    get:
+      operationId: getDiagnostic
+      summary: User diagnostic guide
+      description: Returns a plain text diagnostic guide for end users.
+      tags: [Diagnostic]
+      security: []
+      responses:
+        '200':
+          description: Diagnostic guide
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  /probe:
+    get:
+      operationId: getProbeScript
+      summary: Download probe script
+      tags: [Probes]
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AdminKeyRequired'
+      responses:
+        '200':
+          description: Bash probe script
+          content:
+            text/plain:
+              schema:
+                type: string
+                description: Bash script content
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /probe/report:
+    post:
+      operationId: postProbeReport
+      summary: Submit probe results
+      tags: [Probes]
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AdminKeyRequired'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProbeReportRequest'
+            example:
+              up: 10
+              down: 2
+              isp: MCI
+              country: IR
+              city: Tehran
+              results:
+                - tag: HEL
+                  protocol: reality
+                  status: up
+                  latency_ms: 120
+      responses:
+        '200':
+          description: Report stored
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+                  stored:
+                    type: boolean
+                    example: true
+                  timestamp:
+                    type: string
+                    example: '2026-03-09T12:00:00.000Z'
+        '400':
+          description: Invalid JSON
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: Invalid JSON
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          $ref: '#/components/responses/KVUnavailable'
+
+  /admin/users:
+    get:
+      operationId: listUsers
+      summary: List all users
+      tags: [Admin Users]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: User list
+          headers:
+            X-RateLimit-Limit:
+              $ref: '#/components/headers/X-RateLimit-Limit'
+            X-RateLimit-Remaining:
+              $ref: '#/components/headers/X-RateLimit-Remaining'
+            X-RateLimit-Reset:
+              $ref: '#/components/headers/X-RateLimit-Reset'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  users:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/UserDetail'
+                  total:
+                    type: integer
+                    example: 5
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+    post:
+      operationId: createUser
+      summary: Create a new user
+      tags: [Admin Users]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                  example: bob
+                tier:
+                  type: string
+                  enum: [premium, free, limited]
+                  default: premium
+                expires:
+                  type: string
+                  format: date-time
+                  description: ISO 8601 expiry date (optional)
+                  example: '2027-01-01T00:00:00Z'
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserCreated'
+              example:
+                uuid: 550e8400-e29b-41d4-a716-446655440000
+                sub_url: https://sub.example.com/sub/550e8400-e29b-41d4-a716-446655440000
+                name: bob
+                tier: premium
+                enabled: true
+                expires: null
+                created_at: '2026-03-09T12:00:00.000Z'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                missing_name:
+                  value:
+                    error: name is required
+                bad_json:
+                  value:
+                    error: Invalid JSON
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /admin/users/{uuid}:
+    patch:
+      operationId: updateUser
+      summary: Update a user
+      tags: [Admin Users]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/UserUuid'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                tier:
+                  type: string
+                  enum: [premium, free, limited]
+                enabled:
+                  type: boolean
+                expires:
+                  type: string
+                  format: date-time
+            example:
+              tier: free
+              enabled: false
+      responses:
+        '200':
+          description: User updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserFull'
+              example:
+                uuid: 550e8400-e29b-41d4-a716-446655440000
+                name: bob
+                tier: free
+                enabled: false
+                expires: null
+                created_at: '2026-03-09T12:00:00.000Z'
+                source: kv
+        '400':
+          description: Invalid UUID or JSON
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: User not found
+        '503':
+          $ref: '#/components/responses/KVUnavailable'
+
+    delete:
+      operationId: deleteUser
+      summary: Delete a user
+      tags: [Admin Users]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/UserUuid'
+      responses:
+        '200':
+          description: User deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+                  deleted:
+                    type: string
+                    example: 550e8400-e29b-41d4-a716-446655440000
+        '400':
+          description: Invalid UUID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Cannot delete admin user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: Cannot delete admin user
+
+  /admin/servers:
+    get:
+      operationId: listServers
+      summary: List all servers
+      tags: [Admin Servers]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Server list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  servers:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ServerDetail'
+                  total:
+                    type: integer
+                    example: 4
+              example:
+                servers:
+                  - tag: HEL
+                    location: Helsinki, FI
+                    provider: Hetzner
+                    ip: 1.2.3.4
+                    ipv6: null
+                    enabled: true
+                    has_override: false
+                    override: null
+                    env_ip: 1.2.3.4
+                total: 4
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /admin/servers/{tag}:
+    patch:
+      operationId: updateServer
+      summary: Update a server
+      tags: [Admin Servers]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: tag
+          in: path
+          required: true
+          schema:
+            type: string
+          example: HEL
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ip:
+                  type: string
+                  format: ipv4
+                ipv6:
+                  type: string
+                  format: ipv6
+                enabled:
+                  type: boolean
+            example:
+              ip: 5.6.7.8
+              enabled: true
+      responses:
+        '200':
+          description: Server updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerDetail'
+        '400':
+          description: Invalid JSON
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Server not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: Server not found
+        '503':
+          $ref: '#/components/responses/KVUnavailable'
+
+  /admin/probes:
+    get:
+      operationId: listProbes
+      summary: List probe reports
+      tags: [Probes]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Probe reports
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  summary:
+                    type: object
+                  reports:
+                    type: array
+                    items:
+                      type: object
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          $ref: '#/components/responses/KVUnavailable'
+
+    delete:
+      operationId: deleteProbes
+      summary: Clear all probe reports
+      tags: [Probes]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Probes deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+                  deleted:
+                    type: integer
+                    example: 5
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          $ref: '#/components/responses/KVUnavailable'
+
+  /:
+    get:
+      operationId: root
+      summary: Root path
+      description: Returns 404 Not Found
+      tags: [Diagnostic]
+      security: []
+      responses:
+        '404':
+          description: Not Found
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: Not Found
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: Admin UUID passed as Bearer token in Authorization header
+    ApiKeyAuth:
+      type: apiKey
+      in: query
+      name: key
+      description: Admin UUID passed as `key` query parameter
+
+  parameters:
+    AdminKeyOptional:
+      name: key
+      in: query
+      description: Admin UUID for extended info (optional)
+      required: false
+      schema:
+        type: string
+        format: uuid
+
+    AdminKeyRequired:
+      name: key
+      in: query
+      description: Admin UUID (required)
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    UserUuid:
+      name: uuid
+      in: path
+      required: true
+      description: User UUID
+      schema:
+        type: string
+        format: uuid
+      example: 550e8400-e29b-41d4-a716-446655440000
+
+  responses:
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: Unauthorized
+
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: Forbidden
+
+    KVUnavailable:
+      description: KV storage not available
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: KV not available
+
+    RateLimited:
+      description: Too many requests
+      headers:
+        X-RateLimit-Limit:
+          $ref: '#/components/headers/X-RateLimit-Limit'
+        X-RateLimit-Remaining:
+          $ref: '#/components/headers/X-RateLimit-Remaining'
+        X-RateLimit-Reset:
+          $ref: '#/components/headers/X-RateLimit-Reset'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: Rate limit exceeded
+
+  headers:
+    X-RateLimit-Limit:
+      description: Maximum requests allowed in the current window
+      schema:
+        type: integer
+        example: 60
+    X-RateLimit-Remaining:
+      description: Remaining requests in the current window
+      schema:
+        type: integer
+        example: 57
+    X-RateLimit-Reset:
+      description: UTC epoch seconds when the rate limit window resets
+      schema:
+        type: integer
+        example: 1711468800
+
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+      example:
+        error: Something went wrong
+
+    ServerHealth:
+      type: object
+      required: [tag, location, protocols, health]
+      properties:
+        tag:
+          type: string
+          example: HEL
+        location:
+          type: string
+          example: Helsinki, FI
+        protocols:
+          type: array
+          items:
+            type: string
+          example: [reality, hy2, xhttp, shadowtls]
+        health:
+          type: string
+          enum: [healthy, degraded, down, unknown]
+          example: healthy
+        latency_ms:
+          type: ['integer', 'null']
+          example: null
+        last_check:
+          type: ['string', 'null']
+          format: date-time
+          example: null
+        ip:
+          type: string
+          description: Only in admin view
+        provider:
+          type: string
+          description: Only in admin view
+        enabled:
+          type: boolean
+          description: Only in admin view
+
+    HealthResponse:
+      type: object
+      required: [servers, server_count, checked_at]
+      properties:
+        servers:
+          type: array
+          items:
+            $ref: '#/components/schemas/ServerHealth'
+        server_count:
+          type: integer
+          example: 4
+        checked_at:
+          type: string
+          format: date-time
+          example: '2026-03-09T12:00:00.000Z'
+
+    StatsResponse:
+      type: object
+      properties:
+        servers:
+          type: array
+          items:
+            type: object
+            properties:
+              tag:
+                type: string
+                example: helsinki
+              location:
+                type: string
+                example: Finland
+              enabled:
+                type: boolean
+              health:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [healthy, degraded, down, unknown]
+                    example: unknown
+                  latency_ms:
+                    type: ['integer', 'null']
+                  last_check:
+                    type: ['string', 'null']
+        users:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+                example: alice
+              tier:
+                type: string
+                enum: [premium, free, limited]
+              enabled:
+                type: boolean
+              source:
+                type: string
+                enum: [env, kv]
+              uuid_prefix:
+                type: string
+                example: a1b2c3
+        sub_requests:
+          type: object
+          properties:
+            today:
+              type: object
+            yesterday:
+              type: object
+        total_servers:
+          type: integer
+          example: 4
+        total_users:
+          type: integer
+          example: 5
+        worker_version:
+          type: string
+          example: '5.9.0'
+        checked_at:
+          type: string
+          format: date-time
+
+    GeoInfo:
+      type: object
+      properties:
+        country:
+          type: string
+          example: IR
+        cdn_only:
+          type: boolean
+          example: true
+        fragment:
+          type: boolean
+          example: false
+        mux:
+          type: boolean
+          example: false
+
+    SubscriptionJsonResponse:
+      type: object
+      properties:
+        configs:
+          type: array
+          items:
+            type: string
+          example:
+            - 'vless://uuid@example.com:443?type=tcp&security=reality&sni=yahoo.com#HEL-Reality'
+            - 'ss://method:pass@host:port#HEL-SS2022'
+        user:
+          type: string
+          example: alice
+        geo:
+          $ref: '#/components/schemas/GeoInfo'
+
+    UserDetail:
+      type: object
+      properties:
+        uuid:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: alice
+        tier:
+          type: string
+          enum: [premium, free, limited]
+        enabled:
+          type: boolean
+        source:
+          type: string
+          enum: [env, kv]
+        expires:
+          type: ['string', 'null']
+          format: date-time
+        created_at:
+          type: ['string', 'null']
+          format: date-time
+        today_hits:
+          type: integer
+          example: 0
+
+    UserCreated:
+      type: object
+      properties:
+        uuid:
+          type: string
+          format: uuid
+        sub_url:
+          type: string
+          format: uri
+          example: https://sub.example.com/sub/550e8400-e29b-41d4-a716-446655440000
+        name:
+          type: string
+        tier:
+          type: string
+          enum: [premium, free, limited]
+        enabled:
+          type: boolean
+        expires:
+          type: ['string', 'null']
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+
+    UserFull:
+      type: object
+      properties:
+        uuid:
+          type: string
+          format: uuid
+        name:
+          type: string
+        tier:
+          type: string
+          enum: [premium, free, limited]
+        enabled:
+          type: boolean
+        expires:
+          type: ['string', 'null']
+          format: date-time
+        created_at:
+          type: ['string', 'null']
+          format: date-time
+        source:
+          type: string
+          enum: [env, kv]
+
+    ServerDetail:
+      type: object
+      properties:
+        tag:
+          type: string
+          example: HEL
+        location:
+          type: string
+          example: Helsinki, FI
+        provider:
+          type: string
+          example: Hetzner
+        ip:
+          type: string
+          format: ipv4
+          example: 1.2.3.4
+        ipv6:
+          type: ['string', 'null']
+          format: ipv6
+          example: null
+        enabled:
+          type: boolean
+          example: true
+        has_override:
+          type: boolean
+          example: false
+        override:
+          type: ['object', 'null']
+          example: null
+        env_ip:
+          type: string
+          format: ipv4
+          example: 1.2.3.4
+
+    ProbeReportRequest:
+      type: object
+      properties:
+        up:
+          type: integer
+          example: 10
+        down:
+          type: integer
+          example: 2
+        isp:
+          type: string
+          example: MCI
+        country:
+          type: string
+          example: IR
+        city:
+          type: string
+          example: Tehran
+        results:
+          type: array
+          items:
+            type: object
+            properties:
+              tag:
+                type: string
+                example: HEL
+              protocol:
+                type: string
+                example: reality
+              status:
+                type: string
+                enum: [up, down]
+              latency_ms:
+                type: integer
+                example: 120

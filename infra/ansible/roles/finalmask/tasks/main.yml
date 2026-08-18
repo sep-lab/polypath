@@ -1,0 +1,23 @@
+---
+- name: Configure Finalmask (mKCP obfuscation ports)
+  ansible.builtin.debug:
+    msg: >-
+      Finalmask ports: xdns={{ finalmask_xdns_port }},
+      xicmp={{ finalmask_xicmp_port }},
+      wechat={{ finalmask_wechat_port }},
+      dtls={{ finalmask_dtls_port }},
+      srtp={{ finalmask_srtp_port }}
+  when: has_finalmask | default(false)
+
+- name: Open Finalmask UFW ports
+  community.general.ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: udp
+  loop:
+    - "{{ finalmask_xdns_port }}"
+    - "{{ finalmask_xicmp_port }}"
+    - "{{ finalmask_wechat_port }}"
+    - "{{ finalmask_dtls_port }}"
+    - "{{ finalmask_srtp_port }}"
+  when: has_finalmask | default(false)

@@ -1,0 +1,27 @@
+---
+# Pull latest Docker images and restart containers
+# Equivalent to tools/deploy/upgrade-xray.sh
+- name: Upgrade VPN Docker images
+  hosts: vpn_servers
+  tasks:
+    - name: Pull latest sing-box image
+      community.docker.docker_image:
+        name: ghcr.io/sagernet/sing-box:latest
+        source: pull
+        force_source: true
+
+    - name: Pull latest xray-core image
+      community.docker.docker_image:
+        name: ghcr.io/xtls/xray-core:latest
+        source: pull
+        force_source: true
+
+    - name: Restart sing-box container
+      community.docker.docker_compose_v2:
+        project_src: /opt/engine
+        state: restarted
+
+    - name: Restart xray container
+      community.docker.docker_compose_v2:
+        project_src: /opt/xray
+        state: restarted

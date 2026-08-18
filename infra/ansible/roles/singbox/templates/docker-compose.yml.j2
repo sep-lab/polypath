@@ -1,0 +1,10 @@
+version: "3.8"
+services:
+  engine:
+    image: {{ singbox_image }}
+    container_name: engine
+    restart: always
+    network_mode: host
+    volumes:
+      - ./engine.conf:/etc/sing-box/config.json:ro
+    command: run -c /etc/sing-box/config.json

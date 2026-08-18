@@ -1,0 +1,251 @@
+{
+  "title": "Server Configuration",
+  "type": "object",
+  "required": [
+    "servers"
+  ],
+  "properties": {
+    "servers": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "tag",
+          "location",
+          "provider",
+          "ip_env",
+          "reality",
+          "hy2_port",
+          "cdn_ws",
+          "xhttp_cdn",
+          "grpc_cdn",
+          "http_obfs",
+          "ss2022",
+          "mtproto",
+          "has_dns_tunnel",
+          "enabled"
+        ],
+        "properties": {
+          "tag": {
+            "type": "string",
+            "minLength": 1
+          },
+          "location": {
+            "type": "string",
+            "minLength": 1
+          },
+          "provider": {
+            "type": "string",
+            "minLength": 1
+          },
+          "ip_env": {
+            "type": "string",
+            "pattern": "^[A-Z0-9_]+$"
+          },
+          "ipv6_env": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[A-Z0-9_]+$"
+          },
+          "reality": {
+            "type": "object",
+            "required": [
+              "port",
+              "pubkey_env",
+              "short_id_env",
+              "sni"
+            ],
+            "properties": {
+              "port": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 65535
+              },
+              "port_alt": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 65535
+              },
+              "sni": {
+                "type": "string",
+                "minLength": 1
+              },
+              "pubkey_env": {
+                "type": "string",
+                "pattern": "^[A-Z0-9_]+$",
+                "description": "Name of the env var holding the Reality public key. Never inline the value."
+              },
+              "short_id_env": {
+                "type": "string",
+                "pattern": "^[A-Z0-9_]+$",
+                "description": "Name of the env var holding the Reality short ID (a server-side allowlist credential)."
+              }
+            }
+          },
+          "hy2_port": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535
+          },
+          "cdn_ws": {
+            "type": "object",
+            "required": [
+              "host",
+              "path",
+              "port"
+            ],
+            "properties": {
+              "host": {
+                "type": "string"
+              },
+              "path": {
+                "type": "string"
+              },
+              "port": {
+                "type": "integer"
+              }
+            }
+          },
+          "xhttp_cdn": {
+            "type": "object",
+            "required": [
+              "host",
+              "path",
+              "port"
+            ],
+            "properties": {
+              "host": {
+                "type": "string"
+              },
+              "path": {
+                "type": "string"
+              },
+              "port": {
+                "type": "integer"
+              }
+            }
+          },
+          "grpc_cdn": {
+            "type": "object",
+            "required": [
+              "host",
+              "service_name",
+              "port"
+            ],
+            "properties": {
+              "host": {
+                "type": "string"
+              },
+              "service_name": {
+                "type": "string"
+              },
+              "port": {
+                "type": "integer"
+              }
+            }
+          },
+          "http_obfs": {
+            "type": "object",
+            "required": [
+              "port",
+              "host",
+              "path"
+            ],
+            "properties": {
+              "port": {
+                "type": "integer"
+              },
+              "host": {
+                "type": "string"
+              },
+              "path": {
+                "type": "string"
+              }
+            }
+          },
+          "ss2022": {
+            "type": "object",
+            "required": [
+              "key_env"
+            ],
+            "properties": {
+              "key_env": {
+                "type": "string",
+                "pattern": "^[A-Z0-9_]+$"
+              }
+            }
+          },
+          "naive": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "host": {
+                "type": "string"
+              },
+              "pass_env": {
+                "type": "string",
+                "pattern": "^[A-Z0-9_]+$"
+              }
+            }
+          },
+          "mtproto": {
+            "type": "object",
+            "required": [
+              "secret_env"
+            ],
+            "properties": {
+              "secret_env": {
+                "type": "string",
+                "pattern": "^[A-Z0-9_]+$",
+                "description": "Name of the env var holding the MTProto secret. This is complete auth material."
+              }
+            }
+          },
+          "has_dns_tunnel": {
+            "type": "boolean"
+          },
+          "cloak": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "uid_env": {
+                "type": "string"
+              },
+              "pubkey_env": {
+                "type": "string"
+              }
+            }
+          },
+          "amneziawg": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "relay": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "geo_restrict": {
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  }
+}

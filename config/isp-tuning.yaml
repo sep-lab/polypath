@@ -1,0 +1,87 @@
+# ISP tuning — TLS fragment, MUX, DNS resolvers for Iran bypass
+# Source of truth for all DPI-bypass tuning in worker.js
+
+# Default TLS Fragment settings
+# Splits TLS ClientHello into chunks to defeat SNI-based blocking
+fragment:
+  packets: "tlshello"
+  length: "10-100"
+  interval: "10-50"
+
+# Per-ISP fragment tuning (overrides defaults for Iranian ISPs)
+isp_fragments:
+  irancell:
+    packets: "tlshello"
+    length: "3-30"
+    interval: "30-100"
+  mci:
+    packets: "tlshello"
+    length: "5-80"
+    interval: "15-60"
+  rightel:
+    packets: "tlshello"
+    length: "10-150"
+    interval: "5-30"
+  shatel:
+    packets: "tlshello"
+    length: "5-80"
+    interval: "15-60"
+  mobinnet:
+    packets: "tlshello"
+    length: "5-60"
+    interval: "20-70"
+
+# ASN → ISP name mapping for geo-based fragment selection
+# ASN -> ISP. Used to pick a fragment profile, filter protocols and order
+# configs. Entries below the divider are recognised for labelling and probe
+# reporting but have no measured fragment profile yet, so they fall back to the
+# defaults in `fragment:` — better than being reported as "unknown".
+asn_to_isp:
+  "44244": "irancell"
+  "197207": "mci"
+  "57218": "rightel"
+  "31549": "shatel"
+  "50810": "mobinnet"
+  # -- recognised, no measured tuning profile yet --
+  "58224": "tci"
+  "12880": "itc"
+  "43754": "asiatech"
+  "16322": "parsonline"
+  "49666": "tic"
+
+# MUX (multiplexing) settings for CDN configs
+mux:
+  protocol: "h2"
+  max_concurrency: 8
+  padding: true
+
+# ISP DNS resolvers — used during shutdowns for DNS tunneling
+# These ISP resolvers still respond during shutdowns because blocking
+# them would break domestic internet
+isp_dns_resolvers:
+  mci:
+    - "2.188.21.100"
+    - "2.188.21.120"
+    - "2.188.21.190"
+    - "2.188.21.20"
+    - "2.188.21.200"
+    - "2.188.21.230"
+    - "2.188.21.240"
+    - "2.188.21.90"
+  irancell:
+    - "94.183.126.175"
+    - "94.183.124.45"
+    - "37.202.225.135"
+    - "37.202.225.137"
+    - "87.248.130.22"
+    - "193.84.255.67"
+    - "185.24.253.8"
+    - "188.213.65.54"
+  other:
+    - "5.160.233.150"
+    - "2.144.6.138"
+    - "164.138.206.100"
+    - "185.206.92.250"
+    - "185.206.95.198"
+    - "185.66.226.83"
+    - "194.225.144.2"

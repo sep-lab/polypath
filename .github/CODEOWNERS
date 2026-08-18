@@ -1,0 +1,18 @@
+# CODEOWNERS — auto-assign reviewers for PRs
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default: admin reviews everything
+* @sepehrsadri
+
+# Worker.js and smart-sub: admin must review (account/UUID changes)
+tools/smart-sub/ @sepehrsadri
+
+# Deploy scripts: admin must review (server access)
+tools/deploy/ @sepehrsadri
+
+# CI/CD workflows: admin must review
+.github/ @sepehrsadri
+
+# Security-sensitive files
+SECURITY.md @sepehrsadri
+.gitignore @sepehrsadri

@@ -1,0 +1,12 @@
+---
+- name: Install Cloak plugin for SS2022
+  community.docker.docker_container:
+    name: cloak
+    image: cbeuw/cloak:latest
+    restart_policy: always
+    network_mode: host
+    volumes:
+      - /opt/cloak/ckserver.json:/ckserver.json:ro
+    command: server -c /ckserver.json
+    state: started
+  when: has_cloak | default(false)

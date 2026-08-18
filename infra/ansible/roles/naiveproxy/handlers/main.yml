@@ -1,0 +1,6 @@
+---
+- name: Restart naive
+  community.docker.docker_container:
+    name: naive
+    state: started
+    restart: true

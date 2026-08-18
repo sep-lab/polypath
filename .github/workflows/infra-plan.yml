@@ -1,0 +1,93 @@
+name: Infra — OpenTofu Validate
+
+# PRs get a credential-free syntax/validation pass only.
+#
+# This workflow used to run a full `tofu plan` on every PR with production
+# cloud credentials in scope, and post the plan as a PR comment. Both halves
+# were unsafe:
+#
+#   * `tofu plan` is not read-only in the security sense — `external` data
+#     sources and provider blocks execute at plan time, so any Terraform in
+#     the PR ran with SOPS_AGE_KEY, CF_API_TOKEN and HETZNER_TOKEN available.
+#   * None of the IP outputs are marked `sensitive`, so the posted plan
+#     published production exit IPs. On a public repo that happens on every
+#     infra PR.
+#
+# The credentialed plan now runs only on manual dispatch, against the
+# `production` environment, where reviewers can gate it.
+
+on:
+  pull_request:
+    paths:
+      - "infra/terraform/**"
+      - "config/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: OpenTofu Validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: opentofu/setup-opentofu@v1
+
+      # TODO: add `tofu fmt -check -recursive` once the existing formatting
+      # drift in environments/production/main.tf and modules/hetzner-server/main.tf
+      # is corrected. Tracked with the wider infra hardening work — not added
+      # here, so a cosmetic check cannot block a security fix.
+
+      # -backend=false: no remote state, no credentials, nothing to leak.
+      - name: Tofu init (no backend)
+        working-directory: infra/terraform/environments/production
+        run: tofu init -backend=false
+
+      - name: Tofu validate
+        working-directory: infra/terraform/environments/production
+        run: tofu validate
+
+  plan:
+    name: OpenTofu Plan (production)
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+      - uses: opentofu/setup-opentofu@v1
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Generate terraform.tfvars
+        env:
+          SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
+          CF_ZONE_ID: ${{ secrets.CF_ZONE_ID }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          HETZNER_TOKEN: ${{ secrets.HETZNER_TOKEN }}
+        run: node scripts/generate-terraform-vars.js
+
+      # Backend credentials are supplied at init time — see backend.tf.
+      - name: Tofu init
+        working-directory: infra/terraform/environments/production
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        run: |
+          tofu init -input=false \
+            -backend-config="bucket=${{ secrets.TOFU_STATE_BUCKET }}" \
+            -backend-config="endpoints={s3=\"https://${{ secrets.CF_ACCOUNT_ID }}.r2.cloudflarestorage.com\"}"
+
+      # Plan output is written to the job log only. It is NOT posted as a
+      # comment: the IP outputs are not marked sensitive and would be public.
+      - name: Tofu plan
+        working-directory: infra/terraform/environments/production
+        run: tofu plan -input=false -no-color

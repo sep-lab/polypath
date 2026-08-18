@@ -1,0 +1,5 @@
+---
+xray_image: ghcr.io/xtls/xray-core:latest
+xray_xhttp_port: 10081
+xray_http_port: 10082
+xray_ss_port: 10083

@@ -1,0 +1,56 @@
+{
+  "log": { "loglevel": "warning" },
+  "inbounds": [
+    {
+      "tag": "xhttp-cdn",
+      "listen": "127.0.0.1",
+      "port": {{ xray_xhttp_port }},
+      "protocol": "vless",
+      "settings": {
+        "clients": [{ "id": "{{ vless_uuid }}" }],
+        "decryption": "none"
+      },
+      "streamSettings": {
+        "network": "xhttp",
+        "xhttpSettings": { "path": "{{ xhttp_path }}", "mode": "auto" }
+      }
+    },
+    {
+      "tag": "tcp-http",
+      "listen": "127.0.0.1",
+      "port": {{ xray_http_port }},
+      "protocol": "vless",
+      "settings": {
+        "clients": [{ "id": "{{ vless_uuid }}" }],
+        "decryption": "none"
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "tcpSettings": { "header": { "type": "http" } }
+      }
+    },
+    {
+      "tag": "ss2022",
+      "listen": "127.0.0.1",
+      "port": {{ xray_ss_port }},
+      "protocol": "shadowsocks",
+      "settings": {
+        "method": "2022-blake3-aes-128-gcm",
+        "password": "{{ ss2022_server_key }}",
+        "clients": [{ "password": "{{ ss2022_user_key }}" }]
+      }
+    }
+  ],
+  "outbounds": [
+    { "tag": "direct", "protocol": "freedom" },
+    {
+      "tag": "warp",
+      "protocol": "wireguard",
+      "settings": {
+        "secretKey": "{{ warp_private_key | default('placeholder') }}",
+        "peers": [{ "publicKey": "bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo=", "endpoint": "engage.cloudflareclient.com:2408", "allowedIPs": ["0.0.0.0/0", "::/0"] }]
+      }
+    }
+  ],
+  "routing": { "rules": [{ "outboundTag": "warp", "type": "field", "network": "tcp,udp" }] }
+}

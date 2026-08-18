@@ -1,0 +1,80 @@
+# ── Wrangler Local Development Secrets ─────────────────────────────
+# Copy this file to .dev.vars and fill in the values for YOUR deployment.
+# To try the project without any real infrastructure, use .dev.vars.demo instead:
+#   npm run demo
+# This file is used by `wrangler dev` to simulate env bindings locally.
+# NEVER commit .dev.vars to git. It is listed in .gitignore.
+#
+# For production: set these via `wrangler secret put <NAME>`
+# For GitHub Actions: only ADMIN_UUID is needed (already set as repo secret)
+#
+# Format: KEY=value
+# Docs: https://developers.cloudflare.com/workers/configuration/secrets/
+
+# ── User UUIDs ────────────────────────────────────────────────────
+ADMIN_UUID=<YOUR-ADMIN-UUID>
+FAMILY_UUID=<YOUR-FAMILY-UUID>
+TEST_UUID=<YOUR-TEST-UUID>
+TEST_UUID_EXPIRES=2099-01-01
+
+# ── Protocol Passwords ───────────────────────────────────────────
+SHADOWTLS_PASSWORD=<YOUR-SHADOWTLS-PASSWORD>
+SALAMANDER_PASSWORD=<YOUR-SALAMANDER-PASSWORD>
+
+# ── Shared Shadowsocks 2022 User Key ─────────────────────────────
+SS_USER_KEY=<YOUR-SS-USER-KEY>
+
+# ── Finalmask mKCP Seed ──────────────────────────────────────────
+FINALMASK_SEED=<YOUR-FINALMASK-SEED>
+
+# ── EDtunnel CF Pages Hosts (comma-separated) ────────────────────
+EDTUNNEL_PAGES=<YOUR-EDTUNNEL-HOST-1>,<YOUR-EDTUNNEL-HOST-2>
+
+# ── Helsinki (Hetzner) ───────────────────────────────────────────
+HEL_IP=<HELSINKI-IP>
+HEL_IPV6=<HELSINKI-IPV6>
+HEL_SS_KEY=<HELSINKI-SS-SERVER-KEY>
+HEL_REALITY_PUBKEY=<HELSINKI-REALITY-PUBLIC-KEY>
+HEL_REALITY_SHORT_ID=<HELSINKI-REALITY-SHORT-ID>
+HEL_MTPROTO_SECRET=<HELSINKI-MTPROTO-SECRET>
+HEL_NAIVE_PASS=<HELSINKI-NAIVE-PASSWORD>
+
+# ── Oracle Madrid ────────────────────────────────────────────────
+ORC_IP=<ORACLE-IP>
+ORC_SS_KEY=<ORACLE-SS-SERVER-KEY>
+ORC_REALITY_PUBKEY=<ORACLE-REALITY-PUBLIC-KEY>
+ORC_REALITY_SHORT_ID=<ORACLE-REALITY-SHORT-ID>
+ORC_MTPROTO_SECRET=<ORACLE-MTPROTO-SECRET>
+ORC_NAIVE_PASS=<ORACLE-NAIVE-PASSWORD>
+
+# ── GCP Dammam ───────────────────────────────────────────────────
+GCP_IP=<GCP-IP>
+GCP_SS_KEY=<GCP-SS-SERVER-KEY>
+GCP_REALITY_PUBKEY=<GCP-REALITY-PUBLIC-KEY>
+GCP_REALITY_SHORT_ID=<GCP-REALITY-SHORT-ID>
+GCP_MTPROTO_SECRET=<GCP-MTPROTO-SECRET>
+
+# ── Scaleway London ──────────────────────────────────────────────
+SCW_IP=<SCALEWAY-IP>
+SCW_IPV6=<SCALEWAY-IPV6>
+SCW_SS_KEY=<SCALEWAY-SS-SERVER-KEY>
+SCW_REALITY_PUBKEY=<SCALEWAY-REALITY-PUBLIC-KEY>
+SCW_REALITY_SHORT_ID=<SCALEWAY-REALITY-SHORT-ID>
+SCW_MTPROTO_SECRET=<SCALEWAY-MTPROTO-SECRET>
+SCW_NAIVE_PASS=<SCALEWAY-NAIVE-PASSWORD>
+SCW_CLOAK_UID=<SCALEWAY-CLOAK-UID>
+SCW_CLOAK_PUBKEY=<SCALEWAY-CLOAK-PUBLIC-KEY>
+
+# ── Probe reporting ──────────────────────────────────────────────
+# Scoped token embedded in the generated probe script (GET /probe).
+# MUST NOT equal ADMIN_UUID — the script is handed to volunteers who may be
+# on hostile networks, and must never carry a credential granting admin access.
+# ── Admin API credential ─────────────────────────────────────────
+# Separate from ADMIN_UUID so the admin credential can be rotated without
+# invalidating a user's subscription. If unset, ADMIN_UUID is used.
+ADMIN_TOKEN=<RANDOM-ADMIN-TOKEN>
+
+PROBE_TOKEN=<RANDOM-PROBE-TOKEN>
+
+# ── Limits ───────────────────────────────────────────────────────
+FREE_SERVER_LIMIT=2

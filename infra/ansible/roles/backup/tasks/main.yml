@@ -1,0 +1,27 @@
+---
+- name: Install restic for backups
+  ansible.builtin.apt:
+    name: restic
+    state: present
+
+- name: Create backup script
+  ansible.builtin.copy:
+    content: |
+      #!/bin/bash
+      # Auto-generated backup script — managed by Ansible
+      restic -r "{{ backup_repo }}" backup \
+        /opt/engine/engine.conf \
+        /opt/xray/config.json \
+        /etc/haproxy/haproxy.cfg \
+        --password-file /opt/backup/.restic-password
+    dest: /opt/backup/backup.sh
+    mode: "0750"
+    owner: root
+    group: root
+
+- name: Schedule daily backup via cron
+  ansible.builtin.cron:
+    name: "vpn-config-backup"
+    minute: "30"
+    hour: "3"
+    job: "/opt/backup/backup.sh >> /var/log/backup.log 2>&1"

@@ -1,0 +1,8 @@
+---
+# Helsinki (Hetzner) server-specific protocol flags
+has_naiveproxy: true
+has_cloak: false
+has_shadowtls: false
+has_finalmask: false
+has_dnstt: true
+has_amneziawg: false

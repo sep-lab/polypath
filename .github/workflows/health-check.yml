@@ -1,0 +1,151 @@
+name: VPN Health Check
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'  # Every 30 minutes
+  workflow_dispatch: {}       # Manual trigger
+
+jobs:
+  health-check:
+    runs-on: ubuntu-latest
+    env:
+      HAS_TELEGRAM: ${{ secrets.TELEGRAM_BOT_TOKEN != '' }}
+    steps:
+      - name: Probe servers
+        id: probe
+        env:
+          HELSINKI_IP: ${{ secrets.HELSINKI_IP }}
+          ORACLE_IP: ${{ secrets.ORACLE_IP }}
+          GCP_IP: ${{ secrets.GCP_IP }}
+          SCALEWAY_IP: ${{ secrets.SCALEWAY_IP }}
+        run: |
+          RESULTS="["
+          FIRST=true
+          DOWN_COUNT=0
+
+          declare -a TAGS=("helsinki" "oracle-madrid" "gcp-middle-east" "scaleway-london")
+          declare -a IPS=("$HELSINKI_IP" "$ORACLE_IP" "$GCP_IP" "$SCALEWAY_IP")
+          declare -a CDN_HOSTS=("cdn.example.com" "cdn2.example.com" "cdn4.example.com" "cdn3.example.com")
+
+          for i in "${!TAGS[@]}"; do
+            TAG="${TAGS[$i]}"
+            IP="${IPS[$i]}"
+            REALITY="down"
+            HY2="unknown"
+            CDN_WS="n/a"
+            XHTTP="n/a"
+            LATENCY=0
+
+            # TCP probe on 443 (Reality)
+            START=$(date +%s%N)
+            if nc -z -w 5 "$IP" 443 2>/dev/null; then
+              END=$(date +%s%N)
+              LATENCY=$(( (END - START) / 1000000 ))
+              REALITY="up"
+            fi
+
+            # TCP probe on 80 (XrayHTTP + SS2022 via HAProxy)
+            if nc -z -w 5 "$IP" 80 2>/dev/null; then
+              XHTTP="up"
+            else
+              XHTTP="down"
+            fi
+
+            # UDP probe on 8443 (Hysteria2) - best effort, UDP probes are unreliable
+            if nc -zu -w 3 "$IP" 8443 2>/dev/null; then
+              HY2="up"
+            else
+              HY2="unknown"  # UDP probe failures don't mean it's down
+            fi
+
+            # CDN-WS probe (HTTPS through Cloudflare)
+            CDN_HOST="${CDN_HOSTS[$i]}"
+            if [ -n "$CDN_HOST" ]; then
+              CDN_IP=$(dig +short "$CDN_HOST" | head -1)
+              if [ -n "$CDN_IP" ]; then
+                HTTP_CODE=$(curl -s --http1.1 -o /dev/null -w "%{http_code}" --connect-timeout 5 \
+                  --resolve "${CDN_HOST}:443:${CDN_IP}" \
+                  "https://${CDN_HOST}/ws" \
+                  -H "Upgrade: websocket" -H "Connection: Upgrade" \
+                  -H "Sec-WebSocket-Version: 13" -H "Sec-WebSocket-Key: dGVzdA==" 2>/dev/null)
+                if [ "$HTTP_CODE" = "400" ] || [ "$HTTP_CODE" = "101" ]; then
+                  CDN_WS="up"
+                else
+                  CDN_WS="down (HTTP $HTTP_CODE)"
+                fi
+              else
+                CDN_WS="dns-fail"
+              fi
+            fi
+
+            # Overall status: up if Reality works (primary protocol)
+            STATUS="down"
+            [ "$REALITY" = "up" ] && STATUS="up"
+            [ "$STATUS" = "down" ] && DOWN_COUNT=$((DOWN_COUNT + 1))
+
+            echo "$TAG ($IP): reality=$REALITY xhttp=$XHTTP hy2=$HY2 cdn-ws=$CDN_WS latency=${LATENCY}ms"
+
+            [ "$FIRST" = true ] && FIRST=false || RESULTS+=","
+            RESULTS+="{\"tag\":\"$TAG\",\"status\":\"$STATUS\",\"latency_ms\":$LATENCY,\"reality\":\"$REALITY\",\"xhttp\":\"$XHTTP\",\"hy2\":\"$HY2\",\"cdn_ws\":\"$CDN_WS\"}"
+          done
+
+          RESULTS+="]"
+          echo "results=$RESULTS" >> $GITHUB_OUTPUT
+          echo "down_count=$DOWN_COUNT" >> $GITHUB_OUTPUT
+
+      - name: Smart-sub health probe
+        id: smartsub
+        run: |
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 10 \
+            "https://sub.example.com/health" 2>/dev/null)
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "smartsub=up" >> $GITHUB_OUTPUT
+            echo "Smart-sub worker: UP (HTTP $HTTP_CODE)"
+          else
+            echo "smartsub=down" >> $GITHUB_OUTPUT
+            echo "Smart-sub worker: DOWN (HTTP $HTTP_CODE)"
+          fi
+
+      - name: Report to worker
+        run: |
+          curl -s -X POST "https://sub.example.com/health/report" \
+            -H "Authorization: Bearer ${{ secrets.ADMIN_UUID }}" \
+            -H "Content-Type: application/json" \
+            -d '{"results": ${{ steps.probe.outputs.results }}}'
+
+      - name: Alert on failure (GitHub)
+        if: contains(steps.probe.outputs.results, '"reality":"down"')
+        run: |
+          echo "::warning::One or more VPN servers have Reality DOWN!"
+          echo "${{ steps.probe.outputs.results }}" | python3 -m json.tool
+
+      - name: Alert on failure (Telegram)
+        if: |
+          (contains(steps.probe.outputs.results, '"reality":"down"') || steps.smartsub.outputs.smartsub == 'down')
+          && env.HAS_TELEGRAM == 'true'
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          DOWN_COUNT="${{ steps.probe.outputs.down_count }}"
+          SMARTSUB="${{ steps.smartsub.outputs.smartsub }}"
+
+          MSG="🚨 *VPN Health Alert*%0A"
+          MSG+="Servers down: ${DOWN_COUNT}/4%0A"
+          MSG+="Smart-sub: ${SMARTSUB}%0A%0A"
+
+          # Parse per-server status
+          echo '${{ steps.probe.outputs.results }}' | python3 -c "
+          import json, sys
+          data = json.loads(sys.stdin.read())
+          for s in data:
+              icon = '🟢' if s['status'] == 'up' else '🔴'
+              print(f\"{icon} {s['tag']}: reality={s['reality']} xhttp={s.get('xhttp','n/a')} latency={s['latency_ms']}ms\")
+          " | while IFS= read -r line; do
+            MSG+="${line}%0A"
+          done
+
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d "chat_id=${TELEGRAM_CHAT_ID}" \
+            -d "text=${MSG}" \
+            -d "parse_mode=Markdown" || echo "Telegram alert failed (check bot token)"

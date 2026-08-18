@@ -1,0 +1,6 @@
+---
+finalmask_xdns_port: 10053
+finalmask_xicmp_port: 10054
+finalmask_wechat_port: 10055
+finalmask_dtls_port: 10056
+finalmask_srtp_port: 10057

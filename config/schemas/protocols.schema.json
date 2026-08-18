@@ -1,0 +1,69 @@
+{
+  "title": "Protocol Defaults Configuration",
+  "type": "object",
+  "required": ["finalmask", "shadowtls", "salamander", "ss2022", "naiveproxy", "mtproto", "cloak"],
+  "properties": {
+    "finalmask": {
+      "type": "object",
+      "required": ["xdns_port", "xicmp_port", "wechat_port", "dtls_port", "srtp_port"],
+      "properties": {
+        "xdns_port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "xicmp_port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "wechat_port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "dtls_port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "srtp_port": { "type": "integer", "minimum": 1, "maximum": 65535 }
+      }
+    },
+    "shadowtls": {
+      "type": "object",
+      "required": ["port", "version", "handshake_server"],
+      "properties": {
+        "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "version": { "type": "integer" },
+        "handshake_server": { "type": "string" }
+      }
+    },
+    "salamander": {
+      "type": "object",
+      "required": ["hop_min", "hop_max", "hop_interval"],
+      "properties": {
+        "hop_min": { "type": "integer", "minimum": 1 },
+        "hop_max": { "type": "integer", "minimum": 1 },
+        "hop_interval": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "ss2022": {
+      "type": "object",
+      "required": ["method", "port"],
+      "properties": {
+        "method": { "type": "string" },
+        "port": { "type": "integer", "minimum": 1, "maximum": 65535 }
+      }
+    },
+    "naiveproxy": {
+      "type": "object",
+      "required": ["port", "user"],
+      "properties": {
+        "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "user": { "type": "string" }
+      }
+    },
+    "mtproto": {
+      "type": "object",
+      "required": ["port"],
+      "properties": {
+        "port": { "type": "integer", "minimum": 1, "maximum": 65535 }
+      }
+    },
+    "cloak": {
+      "type": "object",
+      "required": ["port", "encryption", "browser_sig", "server_name"],
+      "properties": {
+        "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "encryption": { "type": "string" },
+        "browser_sig": { "type": "string" },
+        "server_name": { "type": "string" }
+      }
+    }
+  }
+}
