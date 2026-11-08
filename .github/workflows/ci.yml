@@ -57,7 +57,7 @@ jobs:
       # No continue-on-error: every markdown file in the repo now lints clean,
       # so this is a real gate. It previously could not fail, which is why the
       # docs accumulated broken links, mislabelled fences and bad tables.
-      - uses: DavidAnson/markdownlint-cli2-action@v24
+      - uses: DavidAnson/markdownlint-cli2-action@21c1be1b93ad9ed58fa840aacc3f279cde2a72ff # v24
         with:
           globs: '**/*.md'
           config: '.markdownlint.yml'
@@ -349,7 +349,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: hashicorp/setup-packer@main
+      - uses: hashicorp/setup-packer@652a4efa801316809868f895fa28bb1d1e57eb9b # main
 
       - name: Packer init (ubuntu-base)
         run: packer init infra/packer/ubuntu-base.pkr.hcl
